@@ -1,0 +1,6 @@
+{
+  "name": "أطباء زمار",
+  "description": "دليل أطباء زمار الشامل لمواعيد العيادات، العناوين، وأرقام الحجز في زمار",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

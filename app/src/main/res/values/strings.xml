@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">أطباء زمار</string>
+    <string name="app_tagline">دليل العيادات والمراكز الطبية في ناحية زمار</string>
+    <string name="search_hint">ابحث باسم الطبيب، الاختصاص، أو العنوان…</string>
+    <string name="filter_all_days">جميع الأيام</string>
+    <string name="filter_all_specialties">جميع الاختصاصات</string>
+    <string name="open_now">مفتوح الآن</string>
+    <string name="closed_now">مغلق حالياً</string>
+    <string name="available_today">متواجد اليوم</string>
+    <string name="not_available_today">غير متواجد اليوم</string>
+    <string name="working_hours">أوقات الدوام</string>
+    <string name="working_days">أيام التواجد</string>
+    <string name="address_landmark">العنوان والمعلم الدال</string>
+    <string name="call_booking">اتصال للحجز</string>
+    <string name="share_doctor">مشاركة</string>
+    <string name="report_issue">إبلاغ عن خطأ</string>
+    <string name="whatsapp_admin">تواصل مع الإدارة</string>
+    <string name="admin_portal_title">بوابة الإدارة</string>
+    <string name="enter_pin">أدخل رمز الدخول (PIN)</string>
+    <string name="add_doctor">إضافة طبيب جديد</string>
+    <string name="edit_doctor">تعديل بيانات الطبيب</string>
+    <string name="delete_doctor">حذف الطبيب</string>
+    <string name="backup_restore">النسخ الاحتياطي والاستعادة</string>
+    <string name="on_call_pharmacies">الصيدليات الخافرة</string>
+    <string name="medical_labs">المختبرات الطبية</string>
+    <string name="coming_soon">قريباً في التحديث القادم</string>
+</resources>
