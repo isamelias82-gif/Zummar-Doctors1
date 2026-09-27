@@ -10,10 +10,12 @@ import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
 import com.example.data.repository.DoctorRepository
 import com.example.util.ArabicSearchUtils
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -31,8 +33,19 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
 
     val currentDayArabic: String = Doctor.getCurrentDayArabic()
 
+    // Raw query for immediate UI response in the search field
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
+
+    // Debounced query with 120ms window to prevent jank and redundant allocations while typing rapidly
+    @OptIn(FlowPreview::class)
+    private val debouncedQuery = _searchQuery
+        .debounce(120L)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
 
     // Selected day filter: null means all days, or specific day like "السبت"
     private val _selectedDay = MutableStateFlow<String?>(currentDayArabic)
@@ -83,7 +96,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
 
     val filteredDoctors: StateFlow<List<Doctor>> = combine(
         doctors,
-        _searchQuery,
+        debouncedQuery,
         _selectedDay,
         _selectedSpecialty
     ) { docList, query, day, specialty ->

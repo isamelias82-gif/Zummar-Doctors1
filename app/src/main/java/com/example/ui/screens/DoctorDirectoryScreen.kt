@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,7 +91,11 @@ fun DoctorDirectoryScreen(
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 88.dp)
@@ -110,31 +115,16 @@ fun DoctorDirectoryScreen(
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "أطباء زمار",
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White
-                                    )
-                                )
-                                Text(
-                                    text = "الدليل الطبي الشامل لناحية زمار",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = MintCyan
-                                    )
-                                )
-                            }
-
-                            // Interactive Logo (10 taps triggers Admin)
+                            // Top right: Rounded Teal Stethoscope Badge (10 taps triggers Admin)
                             Surface(
-                                shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF0F766E).copy(alpha = 0.55f),
+                                border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.45f)),
+                                shadowElevation = 4.dp,
                                 modifier = Modifier
-                                    .size(54.dp)
+                                    .size(56.dp)
                                     .testTag("app_header_logo")
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
@@ -158,12 +148,30 @@ fun DoctorDirectoryScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.LocalHospital,
-                                        contentDescription = "شعار التطبيق",
+                                        painter = painterResource(id = R.drawable.ic_stethoscope),
+                                        contentDescription = "شعار أطباء زمار - سماعة طبية",
                                         tint = Color.White,
-                                        modifier = Modifier.size(30.dp)
+                                        modifier = Modifier.size(34.dp)
                                     )
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "أطباء زمار",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
+                                    )
+                                )
+                                Text(
+                                    text = "الدليل الطبي الشامل لناحية زمار",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = MintCyan
+                                    )
+                                )
                             }
                         }
 

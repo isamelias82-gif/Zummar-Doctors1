@@ -41,13 +41,14 @@ private val LightColorScheme = lightColorScheme(
     onSurface = TextPrimary,
     surfaceVariant = Color(0xFFF1F5F9),
     onSurfaceVariant = TextSecondary,
-    outline = MedicalCardBorder
+    outline = MedicalCardBorder,
+    outlineVariant = Color(0xFFF1F5F9)
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Keep medical identity consistent
+    darkTheme: Boolean = false, // Enforce Light Mode as default theme
+    dynamicColor: Boolean = false, // Keep clean medical web preview styling consistent
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {

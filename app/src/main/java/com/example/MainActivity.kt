@@ -9,6 +9,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.LocalPharmacy
@@ -32,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -102,13 +105,15 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         onClick = { viewModel.setTab(AppTab.DOCTORS) },
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.MedicalServices,
-                                contentDescription = "أطباء زمار"
+                                painter = painterResource(id = R.drawable.ic_stethoscope),
+                                contentDescription = "أطباء زمار",
+                                modifier = Modifier.size(24.dp)
                             )
                         },
                         label = { Text("أطباء زمار") },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = TealPrimary,
+                            selectedTextColor = TealPrimary,
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer
                         ),
                         modifier = Modifier.testTag("tab_doctors")
@@ -150,6 +155,7 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         label = { Text("الصيدليات الخافرة") },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = TealPrimary,
+                            selectedTextColor = TealPrimary,
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                             disabledIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                             disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -193,6 +199,7 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         label = { Text("المختبرات الطبية") },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = TealPrimary,
+                            selectedTextColor = TealPrimary,
                             indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                             disabledIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                             disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

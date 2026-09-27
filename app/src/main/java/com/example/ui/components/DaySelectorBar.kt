@@ -1,11 +1,10 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -24,35 +23,34 @@ fun DaySelectorBar(
     onDaySelected: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val scrollState = rememberScrollState()
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+    // Virtualized horizontal list rendering (LazyRow) for high performance and smooth scrolling
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // "All Days" option
-        val isAllSelected = selectedDay == null
-        FilterChip(
-            selected = isAllSelected,
-            onClick = { onDaySelected(null) },
-            label = {
-                Text(
-                    text = "جميع الأيام",
-                    style = MaterialTheme.typography.labelMedium
-                )
-            },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = TealPrimary,
-                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-            ),
-            modifier = Modifier.testTag("filter_day_all")
-        )
+        item(key = "all_days") {
+            val isAllSelected = selectedDay == null
+            FilterChip(
+                selected = isAllSelected,
+                onClick = { onDaySelected(null) },
+                label = {
+                    Text(
+                        text = "جميع الأيام",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = TealPrimary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier.testTag("filter_day_all")
+            )
+        }
 
-        // Weekdays
-        Doctor.ALL_DAYS.forEach { day ->
+        // Weekdays - Virtualized with unique stable keys
+        items(Doctor.ALL_DAYS, key = { it }) { day ->
             val isSelected = selectedDay == day
             val isToday = day == todayArabic
             FilterChip(
