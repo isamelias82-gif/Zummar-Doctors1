@@ -79,16 +79,16 @@ class DoctorRepository(
         }
     }
 
-    private val adminPinRef: DatabaseReference? by lazy {
+    private val adminPasscodeRef: DatabaseReference? by lazy {
         try {
-            firebaseDatabase?.getReference("settings/admin_pin")
+            firebaseDatabase?.getReference("admin_passcode")
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting adminPinRef: ${e.message}")
+            Log.e(TAG, "Error getting adminPasscodeRef: ${e.message}")
             null
         }
     }
 
-    private var cachedAdminPin: String = "200120012001"
+    private var cachedAdminPasscode: String = "200120012001"
 
     private val _pharmaciesFlow = MutableStateFlow<List<Pharmacy>>(DefaultData.initialPharmacies)
     val pharmaciesFlow: StateFlow<List<Pharmacy>> = _pharmaciesFlow
@@ -99,7 +99,7 @@ class DoctorRepository(
     init {
         try {
             setupFirebaseListener()
-            setupAdminPinListener()
+            setupAdminPasscodeListener()
             setupPharmaciesListener()
             setupLaboratoriesListener()
         } catch (e: Exception) {
@@ -184,52 +184,146 @@ class DoctorRepository(
         }
     }
 
+    fun addPharmacy(pharmacy: Pharmacy): Long {
+        val currentList = _pharmaciesFlow.value
+        val assignedId = if (pharmacy.id > 0) {
+            pharmacy.id
+        } else {
+            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
+            maxId + 1L
+        }
+        val target = pharmacy.copy(id = assignedId)
+        val updated = currentList.filterNot { it.id == assignedId } + target
+        _pharmaciesFlow.value = updated.sortedBy { it.id }
+        try {
+            pharmaciesRef?.child(assignedId.toString())?.setValue(target)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing pharmacy to /pharmacies/$assignedId: ${e.message}")
+        }
+        return assignedId
+    }
+
+    fun updatePharmacy(pharmacy: Pharmacy) {
+        val targetId = pharmacy.id
+        val currentList = _pharmaciesFlow.value
+        val updated = currentList.map { if (it.id == targetId) pharmacy else it }
+        _pharmaciesFlow.value = updated
+        try {
+            pharmaciesRef?.child(targetId.toString())?.setValue(pharmacy)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating pharmacy at /pharmacies/$targetId: ${e.message}")
+        }
+    }
+
+    fun deletePharmacy(pharmacyId: Long) {
+        val currentList = _pharmaciesFlow.value
+        _pharmaciesFlow.value = currentList.filterNot { it.id == pharmacyId }
+        try {
+            pharmaciesRef?.child(pharmacyId.toString())?.removeValue()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting pharmacy at /pharmacies/$pharmacyId: ${e.message}")
+        }
+    }
+
+    fun deletePharmacy(pharmacy: Pharmacy) {
+        deletePharmacy(pharmacy.id)
+    }
+
     fun savePharmacies(list: List<Pharmacy>) {
         _pharmaciesFlow.value = list
         try {
-            pharmaciesRef?.setValue(list)
+            val map = mutableMapOf<String, Pharmacy>()
+            list.forEach { p -> map[p.id.toString()] = p }
+            pharmaciesRef?.setValue(map)
         } catch (e: Exception) {
             Log.e(TAG, "Error saving pharmacies: ${e.message}")
         }
     }
 
+    fun addLaboratory(laboratory: Laboratory): Long {
+        val currentList = _laboratoriesFlow.value
+        val assignedId = if (laboratory.id > 0) {
+            laboratory.id
+        } else {
+            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
+            maxId + 1L
+        }
+        val target = laboratory.copy(id = assignedId)
+        val updated = currentList.filterNot { it.id == assignedId } + target
+        _laboratoriesFlow.value = updated.sortedBy { it.id }
+        try {
+            laboratoriesRef?.child(assignedId.toString())?.setValue(target)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing laboratory to /laboratories/$assignedId: ${e.message}")
+        }
+        return assignedId
+    }
+
+    fun updateLaboratory(laboratory: Laboratory) {
+        val targetId = laboratory.id
+        val currentList = _laboratoriesFlow.value
+        val updated = currentList.map { if (it.id == targetId) laboratory else it }
+        _laboratoriesFlow.value = updated
+        try {
+            laboratoriesRef?.child(targetId.toString())?.setValue(laboratory)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating laboratory at /laboratories/$targetId: ${e.message}")
+        }
+    }
+
+    fun deleteLaboratory(laboratoryId: Long) {
+        val currentList = _laboratoriesFlow.value
+        _laboratoriesFlow.value = currentList.filterNot { it.id == laboratoryId }
+        try {
+            laboratoriesRef?.child(laboratoryId.toString())?.removeValue()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting laboratory at /laboratories/$laboratoryId: ${e.message}")
+        }
+    }
+
+    fun deleteLaboratory(laboratory: Laboratory) {
+        deleteLaboratory(laboratory.id)
+    }
+
     fun saveLaboratories(list: List<Laboratory>) {
         _laboratoriesFlow.value = list
         try {
-            laboratoriesRef?.setValue(list)
+            val map = mutableMapOf<String, Laboratory>()
+            list.forEach { lab -> map[lab.id.toString()] = lab }
+            laboratoriesRef?.setValue(map)
         } catch (e: Exception) {
             Log.e(TAG, "Error saving laboratories: ${e.message}")
         }
     }
 
-    private fun setupAdminPinListener() {
+    private fun setupAdminPasscodeListener() {
         try {
-            val ref = adminPinRef ?: return
+            val ref = adminPasscodeRef ?: return
             ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     try {
-                        val pin = snapshot.value?.toString()?.trim()
-                        if (!pin.isNullOrEmpty()) {
-                            cachedAdminPin = pin
-                            prefs.edit().putString("admin_pin", pin).apply()
+                        val passcode = snapshot.value?.toString()?.trim()
+                        if (!passcode.isNullOrEmpty()) {
+                            cachedAdminPasscode = passcode
+                            prefs.edit().putString("admin_passcode", passcode).apply()
                         } else {
                             try {
                                 ref.setValue("200120012001")
                             } catch (e: Exception) {}
-                            cachedAdminPin = "200120012001"
-                            prefs.edit().putString("admin_pin", "200120012001").apply()
+                            cachedAdminPasscode = "200120012001"
+                            prefs.edit().putString("admin_passcode", "200120012001").apply()
                         }
                     } catch (e: Exception) {
-                        cachedAdminPin = "200120012001"
+                        cachedAdminPasscode = "200120012001"
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    cachedAdminPin = prefs.getString("admin_pin", "200120012001") ?: "200120012001"
+                    cachedAdminPasscode = prefs.getString("admin_passcode", "200120012001") ?: "200120012001"
                 }
             })
         } catch (e: Exception) {
-            cachedAdminPin = "200120012001"
+            cachedAdminPasscode = "200120012001"
         }
     }
 
@@ -326,26 +420,33 @@ class DoctorRepository(
         syncToFirebase()
     }
 
-    // Admin PIN management
-    fun getAdminPin(): String {
-        return cachedAdminPin.ifEmpty {
-            prefs.getString("admin_pin", "200120012001") ?: "200120012001"
+    // Dynamic Admin Passcode management
+    fun getAdminPasscode(): String {
+        return cachedAdminPasscode.ifEmpty {
+            prefs.getString("admin_passcode", "200120012001") ?: "200120012001"
         }
     }
 
-    fun setAdminPin(pin: String) {
+    fun getAdminPin(): String = getAdminPasscode()
+
+    fun setAdminPasscode(passcode: String) {
+        val trimmed = passcode.trim()
         try {
-            adminPinRef?.setValue(pin)
+            adminPasscodeRef?.setValue(trimmed)
         } catch (e: Exception) {
-            Log.e(TAG, "Error setting admin PIN: ${e.message}")
+            Log.e(TAG, "Error setting admin passcode: ${e.message}")
         }
-        prefs.edit().putString("admin_pin", pin).apply()
-        cachedAdminPin = pin
+        prefs.edit().putString("admin_passcode", trimmed).apply()
+        cachedAdminPasscode = trimmed
     }
 
-    fun verifyPin(enteredPin: String): Boolean {
-        return enteredPin == getAdminPin()
+    fun setAdminPin(pin: String) = setAdminPasscode(pin)
+
+    fun verifyPasscode(enteredPasscode: String): Boolean {
+        return enteredPasscode.trim() == getAdminPasscode()
     }
+
+    fun verifyPin(enteredPin: String): Boolean = verifyPasscode(enteredPin)
 
     // Sponsor Banner Management
     fun getSponsorBanner(): SponsorBanner {

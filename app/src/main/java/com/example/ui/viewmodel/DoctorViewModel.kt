@@ -217,12 +217,14 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun verifyPin(pin: String): Boolean {
-        val valid = repository?.verifyPin(pin) ?: (pin == "200120012001")
+        val valid = repository?.verifyPasscode(pin) ?: (pin.trim() == "200120012001")
         if (valid) {
             _isAdminAuthenticated.value = true
         }
         return valid
     }
+
+    fun verifyPasscode(passcode: String): Boolean = verifyPin(passcode)
 
     fun logoutAdmin() {
         _isAdminAuthenticated.value = false
@@ -231,8 +233,12 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun updateAdminPasscode(newPasscode: String) {
+        repository?.setAdminPasscode(newPasscode)
+    }
+
     fun updateAdminPin(newPin: String) {
-        repository?.setAdminPin(newPin)
+        updateAdminPasscode(newPin)
     }
 
     fun addDoctor(doctor: Doctor) {
@@ -322,46 +328,26 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun addPharmacy(pharmacy: Pharmacy) {
-        val current = pharmacies.value.toMutableList()
-        val newId = if (current.isEmpty()) 1L else current.maxOf { it.id } + 1
-        current.add(pharmacy.copy(id = newId))
-        repository?.savePharmacies(current)
+        repository?.addPharmacy(pharmacy)
     }
 
     fun updatePharmacy(pharmacy: Pharmacy) {
-        val current = pharmacies.value.toMutableList()
-        val index = current.indexOfFirst { it.id == pharmacy.id }
-        if (index >= 0) {
-            current[index] = pharmacy
-            repository?.savePharmacies(current)
-        }
+        repository?.updatePharmacy(pharmacy)
     }
 
     fun deletePharmacy(pharmacy: Pharmacy) {
-        val current = pharmacies.value.toMutableList()
-        current.removeAll { it.id == pharmacy.id }
-        repository?.savePharmacies(current)
+        repository?.deletePharmacy(pharmacy)
     }
 
     fun addLaboratory(laboratory: Laboratory) {
-        val current = laboratories.value.toMutableList()
-        val newId = if (current.isEmpty()) 1L else current.maxOf { it.id } + 1
-        current.add(laboratory.copy(id = newId))
-        repository?.saveLaboratories(current)
+        repository?.addLaboratory(laboratory)
     }
 
     fun updateLaboratory(laboratory: Laboratory) {
-        val current = laboratories.value.toMutableList()
-        val index = current.indexOfFirst { it.id == laboratory.id }
-        if (index >= 0) {
-            current[index] = laboratory
-            repository?.saveLaboratories(current)
-        }
+        repository?.updateLaboratory(laboratory)
     }
 
     fun deleteLaboratory(laboratory: Laboratory) {
-        val current = laboratories.value.toMutableList()
-        current.removeAll { it.id == laboratory.id }
-        repository?.saveLaboratories(current)
+        repository?.deleteLaboratory(laboratory)
     }
 }

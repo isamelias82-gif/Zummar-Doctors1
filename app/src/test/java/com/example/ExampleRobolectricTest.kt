@@ -58,8 +58,16 @@ class ExampleRobolectricTest {
 
     assertEquals("200120012001", repository.getAdminPin())
     assertEquals(true, repository.verifyPin("200120012001"))
+    assertEquals(true, repository.verifyPasscode("200120012001"))
     assertEquals(false, repository.verifyPin("1982"))
     assertEquals(false, repository.verifyPin("1234"))
+
+    // Change passcode dynamically
+    repository.setAdminPasscode("9876543210")
+    assertEquals("9876543210", repository.getAdminPasscode())
+    assertEquals(true, repository.verifyPasscode("9876543210"))
+    assertEquals(true, repository.verifyPin("9876543210"))
+    assertEquals(false, repository.verifyPasscode("200120012001"))
   }
 
   @Test
@@ -138,4 +146,82 @@ class ExampleRobolectricTest {
     // Test multi-token search
     assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "احمد اطفال"))
   }
+
+  @Test
+  fun `pharmacy repository add, update and delete preserves IDs`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val pharmacyRepo = com.example.data.repository.PharmacyRepository.getInstance(context)
+
+    val initialCount = pharmacyRepo.pharmaciesFlow.value.size
+
+    // Add new pharmacy
+    val newPharmacy = com.example.data.model.Pharmacy(
+      id = 0L,
+      name = "صيدلية زمار الجديدة",
+      pharmacist = "د. عمر الجبوري",
+      addressLandmark = "شارع الأطباء",
+      workingHours = "8:00 ص - 10:00 م",
+      isOnDutyTonight = true
+    )
+    val assignedId = pharmacyRepo.addPharmacy(newPharmacy)
+    assert(assignedId > 0L)
+    assertEquals(initialCount + 1, pharmacyRepo.pharmaciesFlow.value.size)
+
+    // Update pharmacy preserving ID
+    val updatedPharmacy = newPharmacy.copy(
+      id = assignedId,
+      name = "صيدلية زمار النموذجية",
+      isOnDutyTonight = false
+    )
+    pharmacyRepo.updatePharmacy(updatedPharmacy)
+    val found = pharmacyRepo.pharmaciesFlow.value.find { it.id == assignedId }
+    assertEquals("صيدلية زمار النموذجية", found?.name)
+    assertEquals(false, found?.isOnDutyTonight)
+    assertEquals(assignedId, found?.id)
+
+    // Delete pharmacy
+    pharmacyRepo.deletePharmacy(assignedId)
+    val afterDelete = pharmacyRepo.pharmaciesFlow.value.find { it.id == assignedId }
+    assertEquals(null, afterDelete)
+    assertEquals(initialCount, pharmacyRepo.pharmaciesFlow.value.size)
+  }
+
+  @Test
+  fun `laboratory repository add, update and delete preserves IDs`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val labRepo = com.example.data.repository.LaboratoryRepository.getInstance(context)
+
+    val initialCount = labRepo.laboratoriesFlow.value.size
+
+    // Add new laboratory
+    val newLab = com.example.data.model.Laboratory(
+      id = 0L,
+      name = "مختبر زمار التخصصي",
+      specialist = "د. أحمد سالم",
+      addressLandmark = "الشارع الرئيسي",
+      services = listOf("CBC", "FBS", "Lipid Profile")
+    )
+    val assignedId = labRepo.addLaboratory(newLab)
+    assert(assignedId > 0L)
+    assertEquals(initialCount + 1, labRepo.laboratoriesFlow.value.size)
+
+    // Update laboratory preserving ID
+    val updatedLab = newLab.copy(
+      id = assignedId,
+      name = "مختبر زمار المركزي المتقدم",
+      services = listOf("CBC", "FBS", "HbA1c")
+    )
+    labRepo.updateLaboratory(updatedLab)
+    val found = labRepo.laboratoriesFlow.value.find { it.id == assignedId }
+    assertEquals("مختبر زمار المركزي المتقدم", found?.name)
+    assertEquals(listOf("CBC", "FBS", "HbA1c"), found?.services)
+    assertEquals(assignedId, found?.id)
+
+    // Delete laboratory
+    labRepo.deleteLaboratory(assignedId)
+    val afterDelete = labRepo.laboratoriesFlow.value.find { it.id == assignedId }
+    assertEquals(null, afterDelete)
+    assertEquals(initialCount, labRepo.laboratoriesFlow.value.size)
+  }
 }
+

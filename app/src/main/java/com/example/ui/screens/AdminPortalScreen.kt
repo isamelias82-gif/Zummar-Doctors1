@@ -314,6 +314,70 @@ fun AdminPortalScreen(
                 }
             }
 
+            // Security & Admin Passcode Card (Change Passcode option)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = TealPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "أمان بوابة الإدارة:",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "يمكنك تغيير كلمة المرور لحماية لوحة الإدارة من التعديل غير المصرح به. يتطلب التغيير التحقق من كلمة المرور الحالية أولاً.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { showChangePinDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("change_passcode_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Key,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("تغيير كلمة المرور")
+                        }
+                    }
+                }
+            }
+
             // Secondary Sections Availability Control (Coming Soon & Disable Taps)
             item {
                 SectionsControlCard(
@@ -661,11 +725,23 @@ fun AdminPortalScreen(
             }
         }
 
-        // FAB to Add Doctor
+        // Dynamic FAB to Add Doctor / Pharmacy / Laboratory
         FloatingActionButton(
             onClick = {
-                editingDoctor = null
-                showFormDialog = true
+                when (adminSection) {
+                    AdminSection.DOCTORS -> {
+                        editingDoctor = null
+                        showFormDialog = true
+                    }
+                    AdminSection.PHARMACIES -> {
+                        editingPharmacy = null
+                        showPharmacyDialog = true
+                    }
+                    AdminSection.LABORATORIES -> {
+                        editingLab = null
+                        showLabDialog = true
+                    }
+                }
             },
             containerColor = TealPrimary,
             contentColor = Color.White,
@@ -673,9 +749,22 @@ fun AdminPortalScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp)
-                .testTag("admin_fab_add_doctor")
+                .testTag(
+                    when (adminSection) {
+                        AdminSection.DOCTORS -> "admin_fab_add_doctor"
+                        AdminSection.PHARMACIES -> "admin_fab_add_pharmacy"
+                        AdminSection.LABORATORIES -> "admin_fab_add_lab"
+                    }
+                )
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "إضافة طبيب جديد")
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = when (adminSection) {
+                    AdminSection.DOCTORS -> "إضافة طبيب جديد"
+                    AdminSection.PHARMACIES -> "إضافة صيدلية جديدة"
+                    AdminSection.LABORATORIES -> "إضافة مختبر جديد"
+                }
+            )
         }
     }
 
@@ -683,7 +772,10 @@ fun AdminPortalScreen(
     if (showFormDialog) {
         DoctorFormDialog(
             initialDoctor = editingDoctor,
-            onDismiss = { showFormDialog = false },
+            onDismiss = {
+                showFormDialog = false
+                editingDoctor = null
+            },
             onSave = { doc ->
                 if (editingDoctor == null) {
                     onAddDoctor(doc)
@@ -693,11 +785,12 @@ fun AdminPortalScreen(
                     Toast.makeText(context, "تم تحديث بيانات الطبيب", Toast.LENGTH_SHORT).show()
                 }
                 showFormDialog = false
+                editingDoctor = null
             }
         )
     }
 
-    // Dialog: Confirm Delete
+    // Dialog: Confirm Delete Doctor
     if (doctorToDelete != null) {
         AlertDialog(
             onDismissRequest = { doctorToDelete = null },
@@ -717,13 +810,130 @@ fun AdminPortalScreen(
                         doctorToDelete = null
                         Toast.makeText(context, "تم حذف الطبيب", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("confirm_delete_doctor_btn")
                 ) {
                     Text("حذف")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { doctorToDelete = null }) {
+                    Text("إلغاء")
+                }
+            }
+        )
+    }
+
+    // Dialog: Add/Edit Pharmacy
+    if (showPharmacyDialog) {
+        PharmacyFormDialog(
+            initialPharmacy = editingPharmacy,
+            onDismiss = {
+                showPharmacyDialog = false
+                editingPharmacy = null
+            },
+            onSave = { pharmacy ->
+                if (editingPharmacy == null) {
+                    onAddPharmacy(pharmacy)
+                    Toast.makeText(context, "تمت إضافة الصيدلية بنجاح", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Preserves the existing ID when updating
+                    onUpdatePharmacy(pharmacy)
+                    Toast.makeText(context, "تم تحديث بيانات الصيدلية بنجاح", Toast.LENGTH_SHORT).show()
+                }
+                showPharmacyDialog = false
+                editingPharmacy = null
+            }
+        )
+    }
+
+    // Dialog: Confirm Delete Pharmacy
+    if (pharmacyToDelete != null) {
+        val target = pharmacyToDelete!!
+        AlertDialog(
+            onDismissRequest = { pharmacyToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("تأكيد حذف الصيدلية") },
+            text = { Text("هل أنت متأكد من حذف \"${target.name}\" نهائياً من قاعدة البيانات؟") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeletePharmacy(target)
+                        pharmacyToDelete = null
+                        Toast.makeText(context, "تم حذف الصيدلية بنجاح", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("confirm_delete_pharmacy_btn")
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pharmacyToDelete = null }) {
+                    Text("إلغاء")
+                }
+            }
+        )
+    }
+
+    // Dialog: Add/Edit Laboratory
+    if (showLabDialog) {
+        LaboratoryFormDialog(
+            initialLaboratory = editingLab,
+            onDismiss = {
+                showLabDialog = false
+                editingLab = null
+            },
+            onSave = { lab ->
+                if (editingLab == null) {
+                    onAddLaboratory(lab)
+                    Toast.makeText(context, "تمت إضافة المختبر بنجاح", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Preserves the existing ID when updating
+                    onUpdateLaboratory(lab)
+                    Toast.makeText(context, "تم تحديث بيانات المختبر بنجاح", Toast.LENGTH_SHORT).show()
+                }
+                showLabDialog = false
+                editingLab = null
+            }
+        )
+    }
+
+    // Dialog: Confirm Delete Laboratory
+    if (labToDelete != null) {
+        val target = labToDelete!!
+        AlertDialog(
+            onDismissRequest = { labToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("تأكيد حذف المختبر") },
+            text = { Text("هل أنت متأكد من حذف \"${target.name}\" نهائياً من قاعدة البيانات؟") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteLaboratory(target)
+                        labToDelete = null
+                        Toast.makeText(context, "تم حذف المختبر بنجاح", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("confirm_delete_lab_btn")
+                ) {
+                    Text("حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { labToDelete = null }) {
                     Text("إلغاء")
                 }
             }
@@ -876,7 +1086,7 @@ fun AdminPortalScreen(
                 confirmPasswordText = ""
                 pinErrorMessage = null
             },
-            title = { Text("تغيير كلمة المرور (PIN)") },
+            title = { Text("تغيير كلمة المرور") },
             text = {
                 Column {
                     Text(
