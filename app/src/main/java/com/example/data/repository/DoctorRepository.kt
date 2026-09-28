@@ -15,9 +15,10 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,20 +34,27 @@ class DoctorRepository(
         private const val RTDB_URL = "https://zummar-doctors-default-rtdb.firebaseio.com"
     }
 
-    val allDoctors: Flow<List<Doctor>> = doctorDao.getAllDoctors()
-
     private val prefs = context.getSharedPreferences("zummar_prefs", Context.MODE_PRIVATE)
 
-    // Lazily and safely retrieve Firebase references without risking crashes
+    // Single sources of truth for pharmacies and laboratories
+    private val pharmacyRepo: PharmacyRepository by lazy { PharmacyRepository.getInstance(context) }
+    private val labRepo: LaboratoryRepository by lazy { LaboratoryRepository.getInstance(context) }
+
+    val pharmaciesFlow: StateFlow<List<Pharmacy>> get() = pharmacyRepo.pharmaciesFlow
+    val laboratoriesFlow: StateFlow<List<Laboratory>> get() = labRepo.laboratoriesFlow
+
+    fun getPharmaciesFlow(): Flow<List<Pharmacy>> = pharmacyRepo.getPharmaciesFlow()
+    fun getLaboratoriesFlow(): Flow<List<Laboratory>> = labRepo.getLaboratoriesFlow()
+
     private val firebaseDatabase: FirebaseDatabase? by lazy {
         try {
             FirebaseDatabase.getInstance(RTDB_URL)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to get custom RTDB instance, falling back to default: ${e.message}")
+            Log.w(TAG, "Failed custom RTDB, falling back to default: ${e.message}")
             try {
                 FirebaseDatabase.getInstance()
             } catch (e2: Exception) {
-                Log.e(TAG, "Failed to get default RTDB instance: ${e2.message}")
+                Log.e(TAG, "Failed default RTDB: ${e2.message}")
                 null
             }
         }
@@ -57,24 +65,6 @@ class DoctorRepository(
             firebaseDatabase?.getReference("doctors")
         } catch (e: Exception) {
             Log.e(TAG, "Error getting doctorsRef: ${e.message}")
-            null
-        }
-    }
-
-    private val pharmaciesRef: DatabaseReference? by lazy {
-        try {
-            firebaseDatabase?.getReference("pharmacies")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting pharmaciesRef: ${e.message}")
-            null
-        }
-    }
-
-    private val laboratoriesRef: DatabaseReference? by lazy {
-        try {
-            firebaseDatabase?.getReference("laboratories")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting laboratoriesRef: ${e.message}")
             null
         }
     }
@@ -90,66 +80,100 @@ class DoctorRepository(
 
     private var cachedAdminPasscode: String = "200120012001"
 
-    // Unified single sources of truth for pharmacies and laboratories
-    private val pharmacyRepo: PharmacyRepository by lazy { PharmacyRepository.getInstance(context) }
-    private val labRepo: LaboratoryRepository by lazy { LaboratoryRepository.getInstance(context) }
-
-    val pharmaciesFlow: StateFlow<List<Pharmacy>> get() = pharmacyRepo.pharmaciesFlow
-    val laboratoriesFlow: StateFlow<List<Laboratory>> get() = labRepo.laboratoriesFlow
-
     init {
         try {
-            setupFirebaseListener()
             setupAdminPasscodeListener()
         } catch (e: Exception) {
             Log.e(TAG, "Safe init error caught: ${e.message}")
         }
     }
 
-    fun addPharmacy(pharmacy: Pharmacy): Long = pharmacyRepo.addPharmacy(pharmacy)
+    /**
+     * Live Kotlin callbackFlow streaming real-time updates directly from Firebase Realtime Database
+     * using addValueEventListener. Replaces all single-fetch get() calls and local-only caching.
+     */
+    fun getDoctorsFlow(): Flow<List<Doctor>> = callbackFlow {
+        val ref = doctorsRef
+        if (ref == null) {
+            val job = launch {
+                doctorDao.getAllDoctors().collect { trySend(it) }
+            }
+            awaitClose { job.cancel() }
+            return@callbackFlow
+        }
 
-    fun updatePharmacy(pharmacy: Pharmacy) {
-        pharmacyRepo.updatePharmacy(pharmacy)
-    }
-
-    fun deletePharmacy(pharmacyId: Long) {
-        pharmacyRepo.deletePharmacy(pharmacyId)
-    }
-
-    fun deletePharmacy(pharmacy: Pharmacy) {
-        pharmacyRepo.deletePharmacy(pharmacy)
-    }
-
-    fun savePharmacies(list: List<Pharmacy>) {
-        pharmacyRepo.savePharmacies(list)
-    }
-
-    fun addLaboratory(laboratory: Laboratory): Long = labRepo.addLaboratory(laboratory)
-
-    fun updateLaboratory(laboratory: Laboratory) {
-        labRepo.updateLaboratory(laboratory)
-    }
-
-    fun deleteLaboratory(laboratoryId: Long) {
-        labRepo.deleteLaboratory(laboratoryId)
-    }
-
-    fun deleteLaboratory(laboratory: Laboratory) {
-        labRepo.deleteLaboratory(laboratory)
-    }
-
-    fun saveLaboratories(list: List<Laboratory>) {
-        labRepo.saveLaboratories(list)
-    }
-
-    suspend fun refreshPharmaciesAndLaboratories() = withContext(Dispatchers.IO) {
         try {
-            pharmacyRepo.fetchFromServer()
-            labRepo.fetchFromServer()
+            ref.keepSynced(true)
         } catch (e: Exception) {
-            Log.e(TAG, "Error refreshing pharmacies and labs: ${e.message}")
+            Log.w(TAG, "keepSynced error on doctorsRef: ${e.message}")
+        }
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val remoteDoctors = SafeFirebaseParser.parseDoctors(snapshot)
+                    if (remoteDoctors.isNotEmpty()) {
+                        val sorted = remoteDoctors.sortedBy { it.id }
+                        trySend(sorted)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            doctorDao.replaceAll(sorted)
+                        }
+                    } else if (snapshot.exists()) {
+                        // Node exists in Firebase but has 0 items (e.g. all doctors deleted)
+                        trySend(emptyList())
+                        CoroutineScope(Dispatchers.IO).launch {
+                            doctorDao.clearAll()
+                        }
+                    } else {
+                        // Node does not exist at all in Firebase RTDB, seed initial data
+                        seedDefaultDoctors()
+                        trySend(DefaultData.initialDoctors)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            doctorDao.replaceAll(DefaultData.initialDoctors)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Safe fallback in doctors listener: ${e.message}")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "Doctors listener cancelled: ${error.message}")
+            }
+        }
+
+        ref.addValueEventListener(listener)
+
+        awaitClose {
+            ref.removeEventListener(listener)
         }
     }
+
+    val allDoctors: Flow<List<Doctor>> get() = getDoctorsFlow()
+
+    private fun seedDefaultDoctors() {
+        try {
+            val ref = doctorsRef ?: return
+            val map = DefaultData.initialDoctors.associateBy { it.id.toString() }
+            ref.setValue(map)
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot seed doctors in Firebase: ${e.message}")
+        }
+    }
+
+    // Pharmacy delegation
+    fun addPharmacy(pharmacy: Pharmacy): Long = pharmacyRepo.addPharmacy(pharmacy)
+    fun updatePharmacy(pharmacy: Pharmacy) = pharmacyRepo.updatePharmacy(pharmacy)
+    fun deletePharmacy(pharmacyId: Long) = pharmacyRepo.deletePharmacy(pharmacyId)
+    fun deletePharmacy(pharmacy: Pharmacy) = pharmacyRepo.deletePharmacy(pharmacy)
+    fun savePharmacies(list: List<Pharmacy>) = pharmacyRepo.savePharmacies(list)
+
+    // Laboratory delegation
+    fun addLaboratory(laboratory: Laboratory): Long = labRepo.addLaboratory(laboratory)
+    fun updateLaboratory(laboratory: Laboratory) = labRepo.updateLaboratory(laboratory)
+    fun deleteLaboratory(laboratoryId: Long) = labRepo.deleteLaboratory(laboratoryId)
+    fun deleteLaboratory(laboratory: Laboratory) = labRepo.deleteLaboratory(laboratory)
+    fun saveLaboratories(list: List<Laboratory>) = labRepo.saveLaboratories(list)
 
     private fun setupAdminPasscodeListener() {
         try {
@@ -187,162 +211,85 @@ class DoctorRepository(
         }
     }
 
-    private fun setupFirebaseListener() {
-        try {
-            val ref = doctorsRef ?: return
-            try {
-                ref.keepSynced(true)
-            } catch (e: Exception) {
-                Log.w(TAG, "keepSynced error on doctorsRef: ${e.message}")
-            }
-            ref.addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val remoteDoctors = SafeFirebaseParser.parseDoctors(snapshot)
-                            if (remoteDoctors.isNotEmpty()) {
-                                doctorDao.replaceAll(remoteDoctors)
-                            } else if (snapshot.exists()) {
-                                // Node exists but has 0 items (e.g. all doctors deleted)
-                                doctorDao.clearAll()
-                            } else {
-                                // Node does not exist in Firebase RTDB yet -> seed defaults
-                                val initial = DefaultData.initialDoctors
-                                val map = initial.associateBy { it.id.toString() }
-                                try {
-                                    ref.setValue(map)
-                                } catch (e: Exception) {
-                                    Log.w(TAG, "Could not seed doctors: ${e.message}")
-                                }
-                                doctorDao.replaceAll(initial)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Safe fallback in doctors listener: ${e.message}")
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.w(TAG, "Doctors listener cancelled: ${error.message}")
-                }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach doctors listener: ${e.message}")
-        }
-    }
-
-    /**
-     * Forces a direct fetch from the Firebase Realtime Database server,
-     * bypassing local cache and updating Room database with remote changes and deletions.
-     */
-    suspend fun fetchDoctorsFromServer(): Boolean = withContext(Dispatchers.IO) {
-        val ref = doctorsRef ?: return@withContext false
-        try {
-            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
-            if (snapshot != null) {
-                val remoteDoctors = SafeFirebaseParser.parseDoctors(snapshot)
-                if (remoteDoctors.isNotEmpty()) {
-                    doctorDao.replaceAll(remoteDoctors)
-                } else if (snapshot.exists()) {
-                    doctorDao.clearAll()
-                } else {
-                    val initial = DefaultData.initialDoctors
-                    val map = initial.associateBy { it.id.toString() }
-                    try {
-                        ref.setValue(map)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not seed doctors: ${e.message}")
-                    }
-                    doctorDao.replaceAll(initial)
-                }
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching doctors from server: ${e.message}")
-            false
-        }
-    }
-
-    suspend fun ensureDefaultDataLoaded() = withContext(Dispatchers.IO) {
-        try {
-            val fetched = fetchDoctorsFromServer()
-            if (!fetched) {
-                val count = doctorDao.getCount()
-                if (count == 0) {
-                    val initial = DefaultData.initialDoctors
-                    doctorDao.replaceAll(initial)
-                    try {
-                        val map = initial.associateBy { it.id.toString() }
-                        doctorsRef?.setValue(map)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error writing initial doctors: ${e.message}")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error ensuring default data loaded: ${e.message}")
-        }
-    }
-
-    private fun syncToFirebase() {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val currentList = doctorDao.getAllDoctors().first()
-                val map = currentList.associateBy { it.id.toString() }
-                doctorsRef?.setValue(map)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error syncing to Firebase: ${e.message}")
-            }
-        }
-    }
-
     suspend fun insertDoctor(doctor: Doctor): Long = withContext(Dispatchers.IO) {
-        val id = doctorDao.insertDoctor(doctor)
-        val doctorWithId = doctor.copy(id = id)
-        try {
-            doctorsRef?.child(id.toString())?.setValue(doctorWithId)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error inserting doctor node $id: ${e.message}")
+        val assignedId = if (doctor.id > 0L) {
+            doctor.id
+        } else {
+            val currentCount = doctorDao.getCount().toLong()
+            System.currentTimeMillis().coerceAtLeast(currentCount + 1L)
         }
-        syncToFirebase()
-        id
+        val doctorWithId = doctor.copy(id = assignedId)
+        doctorDao.insertDoctor(doctorWithId)
+
+        // Write directly to /doctors/$assignedId so it triggers onDataChange for all listening clients
+        try {
+            doctorsRef?.child(assignedId.toString())?.setValue(doctorWithId)
+                ?.addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to write doctor $assignedId: ${e.message}")
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting doctor node $assignedId: ${e.message}")
+        }
+        assignedId
     }
 
     suspend fun updateDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
         doctorDao.updateDoctor(doctor)
+        // Update directly at /doctors/$id
         try {
             doctorsRef?.child(doctor.id.toString())?.setValue(doctor)
+                ?.addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to update doctor ${doctor.id}: ${e.message}")
+                }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating doctor node ${doctor.id}: ${e.message}")
         }
-        syncToFirebase()
     }
 
     suspend fun deleteDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
         doctorDao.deleteDoctor(doctor)
+        // Delete directly at /doctors/$id
         try {
             doctorsRef?.child(doctor.id.toString())?.removeValue()
+                ?.addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to delete doctor ${doctor.id}: ${e.message}")
+                }
         } catch (e: Exception) {
             Log.e(TAG, "Error removing doctor node ${doctor.id}: ${e.message}")
         }
-        syncToFirebase()
     }
 
     suspend fun deleteDoctorById(id: Long) = withContext(Dispatchers.IO) {
         doctorDao.deleteDoctorById(id)
+        // Delete directly at /doctors/$id
         try {
             doctorsRef?.child(id.toString())?.removeValue()
+                ?.addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to delete doctor $id: ${e.message}")
+                }
         } catch (e: Exception) {
             Log.e(TAG, "Error removing doctor node $id: ${e.message}")
         }
-        syncToFirebase()
     }
 
     suspend fun resetToDefaultData() = withContext(Dispatchers.IO) {
         doctorDao.replaceAll(DefaultData.initialDoctors)
-        syncToFirebase()
+        try {
+            val map = DefaultData.initialDoctors.associateBy { it.id.toString() }
+            doctorsRef?.setValue(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting doctors in Firebase: ${e.message}")
+        }
+    }
+
+    fun reconnectRealtime() {
+        try {
+            firebaseDatabase?.goOnline()
+        } catch (e: Exception) {
+            Log.w(TAG, "goOnline error: ${e.message}")
+        }
+        pharmacyRepo.reconnectRealtime()
+        labRepo.reconnectRealtime()
     }
 
     // Dynamic Admin Passcode management
@@ -542,9 +489,13 @@ class DoctorRepository(
             }
 
             if (importedDoctors.isNotEmpty()) {
-                doctorDao.clearAll()
-                doctorDao.insertAllDoctors(importedDoctors)
-                syncToFirebase()
+                doctorDao.replaceAll(importedDoctors)
+                try {
+                    val map = importedDoctors.associateBy { it.id.toString() }
+                    doctorsRef?.setValue(map)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error writing imported doctors to Firebase: ${e.message}")
+                }
                 Result.success(importedDoctors.size)
             } else {
                 Result.failure(Exception("الملف لا يحتوي على أطباء"))

@@ -9,12 +9,12 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class PharmacyRepository(private val context: Context) {
 
@@ -55,77 +55,98 @@ class PharmacyRepository(private val context: Context) {
         }
     }
 
-    private val _pharmaciesFlow = MutableStateFlow<List<Pharmacy>>(DefaultData.initialPharmacies)
-    val pharmaciesFlow: StateFlow<List<Pharmacy>> = _pharmaciesFlow
+    // Authoritative live state flow kept in sync with Firebase Realtime Database
+    private val _livePharmacies = MutableStateFlow<List<Pharmacy>>(DefaultData.initialPharmacies)
+    val pharmaciesFlow: StateFlow<List<Pharmacy>> get() = _livePharmacies
 
     init {
-        setupListener()
+        setupBackgroundListener()
     }
 
-    private fun setupListener() {
+    private fun setupBackgroundListener() {
+        val ref = pharmaciesRef ?: return
         try {
-            val ref = pharmaciesRef ?: return
+            ref.keepSynced(true)
+            ref.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
+                        if (parsed.isNotEmpty()) {
+                            _livePharmacies.value = parsed.sortedBy { it.id }
+                        } else if (snapshot.exists()) {
+                            _livePharmacies.value = emptyList()
+                        } else {
+                            seedDefaultPharmacies()
+                            _livePharmacies.value = DefaultData.initialPharmacies
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in background listener: ${e.message}")
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.w(TAG, "Background listener cancelled: ${error.message}")
+                }
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "setupBackgroundListener error: ${e.message}")
+        }
+    }
+
+    /**
+     * Live Kotlin callbackFlow streaming real-time updates directly from Firebase Realtime Database
+     * using addValueEventListener. Replaces all single-fetch get() calls.
+     */
+    fun getPharmaciesFlow(): Flow<List<Pharmacy>> = callbackFlow {
+        trySend(_livePharmacies.value)
+
+        val ref = pharmaciesRef
+        var listener: ValueEventListener? = null
+        if (ref != null) {
             try {
                 ref.keepSynced(true)
             } catch (e: Exception) {
                 Log.w(TAG, "keepSynced error: ${e.message}")
             }
 
-            ref.addValueEventListener(object : ValueEventListener {
+            listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
-                            if (parsed.isNotEmpty()) {
-                                _pharmaciesFlow.value = parsed.sortedBy { it.id }
-                            } else if (snapshot.exists()) {
-                                // Node exists but has 0 items (e.g., all were deleted)
-                                _pharmaciesFlow.value = emptyList()
-                            } else {
-                                // Node does not exist at all in Firebase Realtime Database
-                                seedDefaultPharmacies()
-                                _pharmaciesFlow.value = DefaultData.initialPharmacies
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error in pharmacies listener: ${e.message}")
+                    try {
+                        val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
+                        if (parsed.isNotEmpty()) {
+                            val sorted = parsed.sortedBy { it.id }
+                            _livePharmacies.value = sorted
+                            trySend(sorted)
+                        } else if (snapshot.exists()) {
+                            _livePharmacies.value = emptyList()
+                            trySend(emptyList())
+                        } else {
+                            seedDefaultPharmacies()
+                            _livePharmacies.value = DefaultData.initialPharmacies
+                            trySend(DefaultData.initialPharmacies)
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing pharmacies in callbackFlow: ${e.message}")
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.w(TAG, "Pharmacies listener cancelled: ${error.message}")
+                    Log.w(TAG, "Pharmacies callbackFlow listener cancelled: ${error.message}")
                 }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach listener: ${e.message}")
-        }
-    }
-
-    /**
-     * Forces a direct fetch from the Firebase Realtime Database server,
-     * bypassing local offline cache to immediately reflect remote edits/deletions.
-     */
-    suspend fun fetchFromServer(): Boolean = withContext(Dispatchers.IO) {
-        val ref = pharmaciesRef ?: return@withContext false
-        try {
-            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
-            if (snapshot != null) {
-                val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
-                if (parsed.isNotEmpty()) {
-                    _pharmaciesFlow.value = parsed.sortedBy { it.id }
-                } else if (snapshot.exists()) {
-                    _pharmaciesFlow.value = emptyList()
-                } else {
-                    seedDefaultPharmacies()
-                    _pharmaciesFlow.value = DefaultData.initialPharmacies
-                }
-                true
-            } else {
-                false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchFromServer error: ${e.message}")
-            false
+
+            ref.addValueEventListener(listener)
+        }
+
+        val localJob = launch {
+            _livePharmacies.collect { trySend(it) }
+        }
+
+        awaitClose {
+            localJob.cancel()
+            if (ref != null && listener != null) {
+                ref.removeEventListener(listener)
+            }
         }
     }
 
@@ -143,10 +164,10 @@ class PharmacyRepository(private val context: Context) {
     }
 
     /**
-     * Add a pharmacy with key preservation at /pharmacies/$id
+     * Add a pharmacy with key preservation directly at /pharmacies/$id
      */
     fun addPharmacy(pharmacy: Pharmacy): Long {
-        val currentList = _pharmaciesFlow.value
+        val currentList = _livePharmacies.value
         val assignedId = if (pharmacy.id > 0) {
             pharmacy.id
         } else {
@@ -155,15 +176,13 @@ class PharmacyRepository(private val context: Context) {
         }
         val targetPharmacy = pharmacy.copy(id = assignedId)
 
-        // Optimistically update local state flow
         val updated = currentList.filterNot { it.id == assignedId } + targetPharmacy
-        _pharmaciesFlow.value = updated.sortedBy { it.id }
+        _livePharmacies.value = updated.sortedBy { it.id }
 
-        // Write directly to /pharmacies/$id in Firebase Realtime Database
         try {
             pharmaciesRef?.child(assignedId.toString())?.setValue(targetPharmacy)
                 ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to add pharmacy $assignedId to Firebase: ${error.message}")
+                    Log.e(TAG, "Failed to write pharmacy $assignedId to Firebase: ${error.message}")
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error writing pharmacy $assignedId: ${e.message}")
@@ -172,17 +191,14 @@ class PharmacyRepository(private val context: Context) {
     }
 
     /**
-     * Update an existing pharmacy preserving its ID at /pharmacies/$id
+     * Update an existing pharmacy preserving its ID directly at /pharmacies/$id
      */
     fun updatePharmacy(pharmacy: Pharmacy) {
         val targetId = pharmacy.id
-        val currentList = _pharmaciesFlow.value
-
-        // Optimistically update local state flow
+        val currentList = _livePharmacies.value
         val updated = currentList.map { if (it.id == targetId) pharmacy else it }
-        _pharmaciesFlow.value = updated
+        _livePharmacies.value = updated
 
-        // Direct update to /pharmacies/$id in Firebase Realtime Database
         try {
             pharmaciesRef?.child(targetId.toString())?.setValue(pharmacy)
                 ?.addOnFailureListener { error ->
@@ -194,15 +210,12 @@ class PharmacyRepository(private val context: Context) {
     }
 
     /**
-     * Delete a pharmacy by ID from /pharmacies/$id
+     * Delete a pharmacy by ID directly removing the child at /pharmacies/$id
      */
     fun deletePharmacy(pharmacyId: Long) {
-        val currentList = _pharmaciesFlow.value
+        val currentList = _livePharmacies.value
+        _livePharmacies.value = currentList.filterNot { it.id == pharmacyId }
 
-        // Optimistically update local state flow
-        _pharmaciesFlow.value = currentList.filterNot { it.id == pharmacyId }
-
-        // Delete node at /pharmacies/$id in Firebase Realtime Database
         try {
             pharmaciesRef?.child(pharmacyId.toString())?.removeValue()
                 ?.addOnFailureListener { error ->
@@ -217,11 +230,8 @@ class PharmacyRepository(private val context: Context) {
         deletePharmacy(pharmacy.id)
     }
 
-    /**
-     * Full replace of pharmacies if needed
-     */
     fun savePharmacies(list: List<Pharmacy>) {
-        _pharmaciesFlow.value = list
+        _livePharmacies.value = list
         try {
             val map = mutableMapOf<String, Pharmacy>()
             list.forEach { p ->
@@ -234,7 +244,24 @@ class PharmacyRepository(private val context: Context) {
     }
 
     fun resetToDefaults() {
-        seedDefaultPharmacies()
-        _pharmaciesFlow.value = DefaultData.initialPharmacies
+        val initial = DefaultData.initialPharmacies
+        _livePharmacies.value = initial
+        try {
+            val map = mutableMapOf<String, Pharmacy>()
+            initial.forEach { p ->
+                map[p.id.toString()] = p
+            }
+            pharmaciesRef?.setValue(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting pharmacies in Firebase: ${e.message}")
+        }
+    }
+
+    fun reconnectRealtime() {
+        try {
+            firebaseDatabase?.goOnline()
+        } catch (e: Exception) {
+            Log.w(TAG, "goOnline error: ${e.message}")
+        }
     }
 }

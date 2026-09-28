@@ -9,12 +9,12 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class LaboratoryRepository(private val context: Context) {
 
@@ -55,77 +55,98 @@ class LaboratoryRepository(private val context: Context) {
         }
     }
 
-    private val _laboratoriesFlow = MutableStateFlow<List<Laboratory>>(DefaultData.initialLaboratories)
-    val laboratoriesFlow: StateFlow<List<Laboratory>> = _laboratoriesFlow
+    // Authoritative live state flow kept in sync with Firebase Realtime Database
+    private val _liveLaboratories = MutableStateFlow<List<Laboratory>>(DefaultData.initialLaboratories)
+    val laboratoriesFlow: StateFlow<List<Laboratory>> get() = _liveLaboratories
 
     init {
-        setupListener()
+        setupBackgroundListener()
     }
 
-    private fun setupListener() {
+    private fun setupBackgroundListener() {
+        val ref = laboratoriesRef ?: return
         try {
-            val ref = laboratoriesRef ?: return
+            ref.keepSynced(true)
+            ref.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
+                        if (parsed.isNotEmpty()) {
+                            _liveLaboratories.value = parsed.sortedBy { it.id }
+                        } else if (snapshot.exists()) {
+                            _liveLaboratories.value = emptyList()
+                        } else {
+                            seedDefaultLaboratories()
+                            _liveLaboratories.value = DefaultData.initialLaboratories
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in background listener: ${e.message}")
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.w(TAG, "Background listener cancelled: ${error.message}")
+                }
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "setupBackgroundListener error: ${e.message}")
+        }
+    }
+
+    /**
+     * Live Kotlin callbackFlow streaming real-time updates directly from Firebase Realtime Database
+     * using addValueEventListener. Replaces all single-fetch get() calls.
+     */
+    fun getLaboratoriesFlow(): Flow<List<Laboratory>> = callbackFlow {
+        trySend(_liveLaboratories.value)
+
+        val ref = laboratoriesRef
+        var listener: ValueEventListener? = null
+        if (ref != null) {
             try {
                 ref.keepSynced(true)
             } catch (e: Exception) {
                 Log.w(TAG, "keepSynced error: ${e.message}")
             }
 
-            ref.addValueEventListener(object : ValueEventListener {
+            listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
-                            if (parsed.isNotEmpty()) {
-                                _laboratoriesFlow.value = parsed.sortedBy { it.id }
-                            } else if (snapshot.exists()) {
-                                // Node exists but has 0 items (e.g., all were deleted)
-                                _laboratoriesFlow.value = emptyList()
-                            } else {
-                                // Node does not exist at all in Firebase Realtime Database
-                                seedDefaultLaboratories()
-                                _laboratoriesFlow.value = DefaultData.initialLaboratories
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error in laboratories listener: ${e.message}")
+                    try {
+                        val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
+                        if (parsed.isNotEmpty()) {
+                            val sorted = parsed.sortedBy { it.id }
+                            _liveLaboratories.value = sorted
+                            trySend(sorted)
+                        } else if (snapshot.exists()) {
+                            _liveLaboratories.value = emptyList()
+                            trySend(emptyList())
+                        } else {
+                            seedDefaultLaboratories()
+                            _liveLaboratories.value = DefaultData.initialLaboratories
+                            trySend(DefaultData.initialLaboratories)
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing laboratories in callbackFlow: ${e.message}")
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.w(TAG, "Laboratories listener cancelled: ${error.message}")
+                    Log.w(TAG, "Laboratories callbackFlow listener cancelled: ${error.message}")
                 }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach listener: ${e.message}")
-        }
-    }
-
-    /**
-     * Forces a direct fetch from the Firebase Realtime Database server,
-     * bypassing local offline cache to immediately reflect remote edits/deletions.
-     */
-    suspend fun fetchFromServer(): Boolean = withContext(Dispatchers.IO) {
-        val ref = laboratoriesRef ?: return@withContext false
-        try {
-            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
-            if (snapshot != null) {
-                val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
-                if (parsed.isNotEmpty()) {
-                    _laboratoriesFlow.value = parsed.sortedBy { it.id }
-                } else if (snapshot.exists()) {
-                    _laboratoriesFlow.value = emptyList()
-                } else {
-                    seedDefaultLaboratories()
-                    _laboratoriesFlow.value = DefaultData.initialLaboratories
-                }
-                true
-            } else {
-                false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchFromServer error: ${e.message}")
-            false
+
+            ref.addValueEventListener(listener)
+        }
+
+        val localJob = launch {
+            _liveLaboratories.collect { trySend(it) }
+        }
+
+        awaitClose {
+            localJob.cancel()
+            if (ref != null && listener != null) {
+                ref.removeEventListener(listener)
+            }
         }
     }
 
@@ -143,10 +164,10 @@ class LaboratoryRepository(private val context: Context) {
     }
 
     /**
-     * Add a laboratory with key preservation at /laboratories/$id
+     * Add a laboratory with key preservation directly at /laboratories/$id
      */
     fun addLaboratory(laboratory: Laboratory): Long {
-        val currentList = _laboratoriesFlow.value
+        val currentList = _liveLaboratories.value
         val assignedId = if (laboratory.id > 0) {
             laboratory.id
         } else {
@@ -155,15 +176,13 @@ class LaboratoryRepository(private val context: Context) {
         }
         val targetLab = laboratory.copy(id = assignedId)
 
-        // Optimistically update local state flow
         val updated = currentList.filterNot { it.id == assignedId } + targetLab
-        _laboratoriesFlow.value = updated.sortedBy { it.id }
+        _liveLaboratories.value = updated.sortedBy { it.id }
 
-        // Write directly to /laboratories/$id in Firebase Realtime Database
         try {
             laboratoriesRef?.child(assignedId.toString())?.setValue(targetLab)
                 ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to add laboratory $assignedId to Firebase: ${error.message}")
+                    Log.e(TAG, "Failed to write laboratory $assignedId to Firebase: ${error.message}")
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error writing laboratory $assignedId: ${e.message}")
@@ -172,17 +191,14 @@ class LaboratoryRepository(private val context: Context) {
     }
 
     /**
-     * Update an existing laboratory preserving its ID at /laboratories/$id
+     * Update an existing laboratory preserving its ID directly at /laboratories/$id
      */
     fun updateLaboratory(laboratory: Laboratory) {
         val targetId = laboratory.id
-        val currentList = _laboratoriesFlow.value
-
-        // Optimistically update local state flow
+        val currentList = _liveLaboratories.value
         val updated = currentList.map { if (it.id == targetId) laboratory else it }
-        _laboratoriesFlow.value = updated
+        _liveLaboratories.value = updated
 
-        // Direct update to /laboratories/$id in Firebase Realtime Database
         try {
             laboratoriesRef?.child(targetId.toString())?.setValue(laboratory)
                 ?.addOnFailureListener { error ->
@@ -194,15 +210,12 @@ class LaboratoryRepository(private val context: Context) {
     }
 
     /**
-     * Delete a laboratory by ID from /laboratories/$id
+     * Delete a laboratory by ID directly removing the child at /laboratories/$id
      */
     fun deleteLaboratory(laboratoryId: Long) {
-        val currentList = _laboratoriesFlow.value
+        val currentList = _liveLaboratories.value
+        _liveLaboratories.value = currentList.filterNot { it.id == laboratoryId }
 
-        // Optimistically update local state flow
-        _laboratoriesFlow.value = currentList.filterNot { it.id == laboratoryId }
-
-        // Delete node at /laboratories/$id in Firebase Realtime Database
         try {
             laboratoriesRef?.child(laboratoryId.toString())?.removeValue()
                 ?.addOnFailureListener { error ->
@@ -217,11 +230,8 @@ class LaboratoryRepository(private val context: Context) {
         deleteLaboratory(laboratory.id)
     }
 
-    /**
-     * Full replace of laboratories if needed
-     */
     fun saveLaboratories(list: List<Laboratory>) {
-        _laboratoriesFlow.value = list
+        _liveLaboratories.value = list
         try {
             val map = mutableMapOf<String, Laboratory>()
             list.forEach { lab ->
@@ -234,7 +244,24 @@ class LaboratoryRepository(private val context: Context) {
     }
 
     fun resetToDefaults() {
-        seedDefaultLaboratories()
-        _laboratoriesFlow.value = DefaultData.initialLaboratories
+        val initial = DefaultData.initialLaboratories
+        _liveLaboratories.value = initial
+        try {
+            val map = mutableMapOf<String, Laboratory>()
+            initial.forEach { lab ->
+                map[lab.id.toString()] = lab
+            }
+            laboratoriesRef?.setValue(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting laboratories in Firebase: ${e.message}")
+        }
+    }
+
+    fun reconnectRealtime() {
+        try {
+            firebaseDatabase?.goOnline()
+        } catch (e: Exception) {
+            Log.w(TAG, "goOnline error: ${e.message}")
+        }
     }
 }

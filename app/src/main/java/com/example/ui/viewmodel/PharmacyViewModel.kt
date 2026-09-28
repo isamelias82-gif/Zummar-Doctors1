@@ -15,7 +15,7 @@ class PharmacyViewModel(
     private val repository: PharmacyRepository = PharmacyRepository.getInstance(application)
 ) : AndroidViewModel(application) {
 
-    val pharmacies: StateFlow<List<Pharmacy>> = repository.pharmaciesFlow
+    val pharmacies: StateFlow<List<Pharmacy>> = repository.getPharmaciesFlow()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -50,7 +50,7 @@ class PharmacyViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            repository.fetchFromServer()
+            repository.reconnectRealtime()
         }
     }
 }

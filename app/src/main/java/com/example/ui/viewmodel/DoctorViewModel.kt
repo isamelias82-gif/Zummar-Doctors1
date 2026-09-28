@@ -91,14 +91,14 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     val isReady: StateFlow<Boolean> = _isReady
 
     // Dynamic lists for pharmacies and labs backed by Firebase Realtime Database
-    val pharmacies: StateFlow<List<Pharmacy>> = (repository?.pharmaciesFlow ?: flowOf(DefaultData.initialPharmacies))
+    val pharmacies: StateFlow<List<Pharmacy>> = (repository?.getPharmaciesFlow() ?: flowOf(DefaultData.initialPharmacies))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = DefaultData.initialPharmacies
         )
 
-    val laboratories: StateFlow<List<Laboratory>> = (repository?.laboratoriesFlow ?: flowOf(DefaultData.initialLaboratories))
+    val laboratories: StateFlow<List<Laboratory>> = (repository?.getLaboratoriesFlow() ?: flowOf(DefaultData.initialLaboratories))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -120,20 +120,14 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
                 _sponsorBanner.value = repo.getSponsorBanner()
                 _isPharmaciesEnabled.value = repo.isPharmaciesEnabled()
                 _isLaboratoriesEnabled.value = repo.isLaboratoriesEnabled()
-                viewModelScope.launch {
-                    try {
-                        repo.ensureDefaultDataLoaded()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error in ensureDefaultDataLoaded: ${e.message}")
-                    }
-                }
+                repo.reconnectRealtime()
             }
         } catch (e: Exception) {
             Log.e(TAG, "ViewModel init exception handled safely: ${e.message}")
         }
     }
 
-    val doctors: StateFlow<List<Doctor>> = (repository?.allDoctors ?: flowOf(DefaultData.initialDoctors))
+    val doctors: StateFlow<List<Doctor>> = (repository?.getDoctorsFlow() ?: flowOf(DefaultData.initialDoctors))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -320,7 +314,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshDoctors() {
         viewModelScope.launch {
             try {
-                repository?.fetchDoctorsFromServer()
+                repository?.reconnectRealtime()
             } catch (e: Exception) {
                 Log.e(TAG, "Error refreshing doctors: ${e.message}")
             }
@@ -330,7 +324,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshPharmacies() {
         viewModelScope.launch {
             try {
-                repository?.refreshPharmaciesAndLaboratories()
+                repository?.reconnectRealtime()
             } catch (e: Exception) {
                 Log.e(TAG, "Error refreshing pharmacies: ${e.message}")
             }
@@ -340,7 +334,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshLaboratories() {
         viewModelScope.launch {
             try {
-                repository?.refreshPharmaciesAndLaboratories()
+                repository?.reconnectRealtime()
             } catch (e: Exception) {
                 Log.e(TAG, "Error refreshing laboratories: ${e.message}")
             }
@@ -350,8 +344,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshAll() {
         viewModelScope.launch {
             try {
-                repository?.fetchDoctorsFromServer()
-                repository?.refreshPharmaciesAndLaboratories()
+                repository?.reconnectRealtime()
             } catch (e: Exception) {
                 Log.e(TAG, "Error in refreshAll: ${e.message}")
             }

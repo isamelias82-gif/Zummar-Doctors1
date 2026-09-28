@@ -15,7 +15,7 @@ class LaboratoryViewModel(
     private val repository: LaboratoryRepository = LaboratoryRepository.getInstance(application)
 ) : AndroidViewModel(application) {
 
-    val laboratories: StateFlow<List<Laboratory>> = repository.laboratoriesFlow
+    val laboratories: StateFlow<List<Laboratory>> = repository.getLaboratoriesFlow()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -50,7 +50,7 @@ class LaboratoryViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            repository.fetchFromServer()
+            repository.reconnectRealtime()
         }
     }
 }
