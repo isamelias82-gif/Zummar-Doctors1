@@ -29,7 +29,8 @@ enum class AppTab {
 
 class DoctorViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: DoctorRepository
+    private val db = AppDatabase.getInstance(application)
+    private val repository = DoctorRepository(db.doctorDao(), application)
 
     val currentDayArabic: String = Doctor.getCurrentDayArabic()
 
@@ -63,9 +64,20 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     private val _isAdminAuthenticated = MutableStateFlow(false)
     val isAdminAuthenticated: StateFlow<Boolean> = _isAdminAuthenticated
 
-    // Static list for pharmacies and labs (seeded from DefaultData)
-    val pharmacies: List<Pharmacy> = DefaultData.initialPharmacies
-    val laboratories: List<Laboratory> = DefaultData.initialLaboratories
+    // Dynamic lists for pharmacies and labs backed by Firebase Realtime Database
+    val pharmacies: StateFlow<List<Pharmacy>> = repository.pharmaciesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = DefaultData.initialPharmacies
+        )
+
+    val laboratories: StateFlow<List<Laboratory>> = repository.laboratoriesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = DefaultData.initialLaboratories
+        )
 
     private val _sponsorBanner = MutableStateFlow(com.example.data.model.SponsorBanner.defaultBanner)
     val sponsorBanner: StateFlow<com.example.data.model.SponsorBanner> = _sponsorBanner
@@ -77,8 +89,6 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     val isLaboratoriesEnabled: StateFlow<Boolean> = _isLaboratoriesEnabled
 
     init {
-        val db = AppDatabase.getInstance(application)
-        repository = DoctorRepository(db.doctorDao(), application)
         _sponsorBanner.value = repository.getSponsorBanner()
         _isPharmaciesEnabled.value = repository.isPharmaciesEnabled()
         _isLaboratoriesEnabled.value = repository.isLaboratoriesEnabled()
@@ -253,5 +263,49 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.ensureDefaultDataLoaded()
         }
+    }
+
+    fun addPharmacy(pharmacy: Pharmacy) {
+        val current = pharmacies.value.toMutableList()
+        val newId = if (current.isEmpty()) 1L else current.maxOf { it.id } + 1
+        current.add(pharmacy.copy(id = newId))
+        repository.savePharmacies(current)
+    }
+
+    fun updatePharmacy(pharmacy: Pharmacy) {
+        val current = pharmacies.value.toMutableList()
+        val index = current.indexOfFirst { it.id == pharmacy.id }
+        if (index >= 0) {
+            current[index] = pharmacy
+            repository.savePharmacies(current)
+        }
+    }
+
+    fun deletePharmacy(pharmacy: Pharmacy) {
+        val current = pharmacies.value.toMutableList()
+        current.removeAll { it.id == pharmacy.id }
+        repository.savePharmacies(current)
+    }
+
+    fun addLaboratory(laboratory: Laboratory) {
+        val current = laboratories.value.toMutableList()
+        val newId = if (current.isEmpty()) 1L else current.maxOf { it.id } + 1
+        current.add(laboratory.copy(id = newId))
+        repository.saveLaboratories(current)
+    }
+
+    fun updateLaboratory(laboratory: Laboratory) {
+        val current = laboratories.value.toMutableList()
+        val index = current.indexOfFirst { it.id == laboratory.id }
+        if (index >= 0) {
+            current[index] = laboratory
+            repository.saveLaboratories(current)
+        }
+    }
+
+    fun deleteLaboratory(laboratory: Laboratory) {
+        val current = laboratories.value.toMutableList()
+        current.removeAll { it.id == laboratory.id }
+        repository.saveLaboratories(current)
     }
 }

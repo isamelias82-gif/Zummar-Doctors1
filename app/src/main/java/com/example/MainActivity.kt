@@ -75,6 +75,8 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val selectedSpecialty by viewModel.selectedSpecialty.collectAsStateWithLifecycle()
     val sponsorBanner by viewModel.sponsorBanner.collectAsStateWithLifecycle()
+    val pharmacies by viewModel.pharmacies.collectAsStateWithLifecycle()
+    val laboratories by viewModel.laboratories.collectAsStateWithLifecycle()
     val isPharmaciesEnabled by viewModel.isPharmaciesEnabled.collectAsStateWithLifecycle()
     val isLaboratoriesEnabled by viewModel.isLaboratoriesEnabled.collectAsStateWithLifecycle()
 
@@ -234,29 +236,38 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
 
                 AppTab.PHARMACIES -> {
                     PharmaciesScreen(
-                        pharmacies = viewModel.pharmacies
+                        pharmacies = pharmacies
                     )
                 }
 
                 AppTab.LABORATORIES -> {
                     LaboratoriesScreen(
-                        laboratories = viewModel.laboratories
+                        laboratories = laboratories
                     )
                 }
 
                 AppTab.ADMIN -> {
                     AdminPortalScreen(
                         doctors = allDoctors,
+                        pharmacies = pharmacies,
+                        laboratories = laboratories,
                         sponsorBanner = sponsorBanner,
                         isPharmaciesEnabled = isPharmaciesEnabled,
                         isLaboratoriesEnabled = isLaboratoriesEnabled,
                         onAddDoctor = { viewModel.addDoctor(it) },
                         onUpdateDoctor = { viewModel.updateDoctor(it) },
                         onDeleteDoctor = { viewModel.deleteDoctor(it) },
+                        onAddPharmacy = { viewModel.addPharmacy(it) },
+                        onUpdatePharmacy = { viewModel.updatePharmacy(it) },
+                        onDeletePharmacy = { viewModel.deletePharmacy(it) },
+                        onAddLaboratory = { viewModel.addLaboratory(it) },
+                        onUpdateLaboratory = { viewModel.updateLaboratory(it) },
+                        onDeleteLaboratory = { viewModel.deleteLaboratory(it) },
                         onResetDefaults = { viewModel.resetToDefaults() },
                         onExportJson = { viewModel.exportJson() },
                         onImportJson = { viewModel.importJson(it) },
                         onUpdatePin = { viewModel.updateAdminPin(it) },
+                        verifyPin = { viewModel.verifyPin(it) },
                         onUpdateSponsorBanner = { viewModel.updateSponsorBanner(it) },
                         onTogglePharmacies = { viewModel.setPharmaciesEnabled(it) },
                         onToggleLaboratories = { viewModel.setLaboratoriesEnabled(it) },

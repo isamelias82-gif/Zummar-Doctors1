@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +29,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -65,8 +71,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Doctor
+import com.example.data.model.Laboratory
+import com.example.data.model.Pharmacy
 import com.example.data.model.SponsorBanner
+import com.example.ui.components.CategoryTabButton
 import com.example.ui.components.DoctorFormDialog
+import com.example.ui.components.LaboratoryFormDialog
+import com.example.ui.components.PharmacyFormDialog
 import com.example.ui.components.SectionsControlCard
 import com.example.ui.components.SponsorBannerEditorCard
 import com.example.ui.theme.TealPrimary
@@ -76,19 +87,34 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
+enum class AdminSection {
+    DOCTORS,
+    PHARMACIES,
+    LABORATORIES
+}
+
 @Composable
 fun AdminPortalScreen(
     doctors: List<Doctor>,
+    pharmacies: List<Pharmacy> = emptyList(),
+    laboratories: List<Laboratory> = emptyList(),
     sponsorBanner: SponsorBanner,
     isPharmaciesEnabled: Boolean,
     isLaboratoriesEnabled: Boolean,
     onAddDoctor: (Doctor) -> Unit,
     onUpdateDoctor: (Doctor) -> Unit,
     onDeleteDoctor: (Doctor) -> Unit,
+    onAddPharmacy: (Pharmacy) -> Unit = {},
+    onUpdatePharmacy: (Pharmacy) -> Unit = {},
+    onDeletePharmacy: (Pharmacy) -> Unit = {},
+    onAddLaboratory: (Laboratory) -> Unit = {},
+    onUpdateLaboratory: (Laboratory) -> Unit = {},
+    onDeleteLaboratory: (Laboratory) -> Unit = {},
     onResetDefaults: () -> Unit,
     onExportJson: suspend () -> String,
     onImportJson: suspend (String) -> Result<Int>,
     onUpdatePin: (String) -> Unit,
+    verifyPin: (String) -> Boolean,
     onUpdateSponsorBanner: (SponsorBanner) -> Unit,
     onTogglePharmacies: (Boolean) -> Unit,
     onToggleLaboratories: (Boolean) -> Unit,
@@ -98,9 +124,19 @@ fun AdminPortalScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var adminSection by remember { mutableStateOf(AdminSection.DOCTORS) }
+
     var showFormDialog by remember { mutableStateOf(false) }
     var editingDoctor by remember { mutableStateOf<Doctor?>(null) }
     var doctorToDelete by remember { mutableStateOf<Doctor?>(null) }
+
+    var showPharmacyDialog by remember { mutableStateOf(false) }
+    var editingPharmacy by remember { mutableStateOf<Pharmacy?>(null) }
+    var pharmacyToDelete by remember { mutableStateOf<Pharmacy?>(null) }
+
+    var showLabDialog by remember { mutableStateOf(false) }
+    var editingLab by remember { mutableStateOf<Laboratory?>(null) }
+    var labToDelete by remember { mutableStateOf<Laboratory?>(null) }
 
     var showExportDialog by remember { mutableStateOf(false) }
     var exportedJsonText by remember { mutableStateOf("") }
@@ -109,7 +145,10 @@ fun AdminPortalScreen(
     var importJsonText by remember { mutableStateOf("") }
 
     var showChangePinDialog by remember { mutableStateOf(false) }
-    var newPinText by remember { mutableStateOf("") }
+    var currentPasswordText by remember { mutableStateOf("") }
+    var newPasswordText by remember { mutableStateOf("") }
+    var confirmPasswordText by remember { mutableStateOf("") }
+    var pinErrorMessage by remember { mutableStateOf<String?>(null) }
 
     var showResetConfirmDialog by remember { mutableStateOf(false) }
 
@@ -293,98 +332,328 @@ fun AdminPortalScreen(
                 )
             }
 
-            // Doctors List Header with count
+            // Admin Section Selector (Doctors, Pharmacies, Laboratories)
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "قائمة الأطباء المسجلين (${doctors.size}):",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
+                    CategoryTabButton(
+                        title = "إدارة الأطباء",
+                        icon = Icons.Default.MedicalServices,
+                        selected = adminSection == AdminSection.DOCTORS,
+                        onClick = { adminSection = AdminSection.DOCTORS },
+                        modifier = Modifier.weight(1f)
                     )
-
-                    Button(
-                        onClick = {
-                            editingDoctor = null
-                            showFormDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.testTag("add_doctor_header_btn")
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("إضافة طبيب", style = MaterialTheme.typography.labelSmall)
-                    }
+                    CategoryTabButton(
+                        title = "إدارة الصيدليات",
+                        icon = Icons.Default.LocalPharmacy,
+                        selected = adminSection == AdminSection.PHARMACIES,
+                        onClick = { adminSection = AdminSection.PHARMACIES },
+                        modifier = Modifier.weight(1f)
+                    )
+                    CategoryTabButton(
+                        title = "إدارة المختبرات",
+                        icon = Icons.Default.Biotech,
+                        selected = adminSection == AdminSection.LABORATORIES,
+                        onClick = { adminSection = AdminSection.LABORATORIES },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            // Doctor Items for editing & deletion
-            items(doctors, key = { it.id }) { doctor ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                        .testTag("admin_doctor_item_${doctor.id}"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+            when (adminSection) {
+                AdminSection.DOCTORS -> {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = doctor.name,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                text = "قائمة الأطباء المسجلين (${doctors.size}):",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
                             )
-                            Text(
-                                text = "${doctor.specialty} • ${doctor.days.size} أيام",
-                                style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
-                            )
-                            Text(
-                                text = doctor.phoneNumbers.joinToString(" - "),
-                                style = MaterialTheme.typography.labelSmall.copy(color = TealPrimary)
-                            )
-                        }
 
-                        Row {
-                            IconButton(
+                            Button(
                                 onClick = {
-                                    editingDoctor = doctor
+                                    editingDoctor = null
                                     showFormDialog = true
                                 },
-                                modifier = Modifier.testTag("edit_doc_${doctor.id}")
+                                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("add_doctor_header_btn")
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "تعديل",
-                                    tint = TealPrimary
-                                )
+                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("إضافة طبيب", style = MaterialTheme.typography.labelSmall)
                             }
+                        }
+                    }
 
-                            IconButton(
-                                onClick = { doctorToDelete = doctor },
-                                modifier = Modifier.testTag("delete_doc_${doctor.id}")
+                    items(doctors, key = { it.id }) { doctor ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .testTag("admin_doctor_item_${doctor.id}"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "حذف",
-                                    tint = MaterialTheme.colorScheme.error
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = doctor.name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "${doctor.specialty} • ${doctor.days.size} أيام",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                                    )
+                                    Text(
+                                        text = doctor.phoneNumbers.joinToString(" - "),
+                                        style = MaterialTheme.typography.labelSmall.copy(color = TealPrimary)
+                                    )
+                                }
+
+                                Row {
+                                    IconButton(
+                                        onClick = {
+                                            editingDoctor = doctor
+                                            showFormDialog = true
+                                        },
+                                        modifier = Modifier.testTag("edit_doc_${doctor.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "تعديل",
+                                            tint = TealPrimary
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { doctorToDelete = doctor },
+                                        modifier = Modifier.testTag("delete_doc_${doctor.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "حذف",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AdminSection.PHARMACIES -> {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "قائمة الصيدليات الخافرة (${pharmacies.size}):",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
                                 )
+                            )
+
+                            Button(
+                                onClick = {
+                                    editingPharmacy = null
+                                    showPharmacyDialog = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("add_pharmacy_header_btn")
+                            ) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("إضافة صيدلية", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+
+                    items(pharmacies, key = { it.id }) { pharmacy ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .testTag("admin_pharmacy_item_${pharmacy.id}"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = pharmacy.name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "الإشراف: ${pharmacy.pharmacist} • ${if (pharmacy.isOnDutyTonight) "خافرة الليلة 🌙" else "غير خافرة"}",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                                    )
+                                    Text(
+                                        text = pharmacy.workingHours,
+                                        style = MaterialTheme.typography.labelSmall.copy(color = TealPrimary)
+                                    )
+                                }
+
+                                Row {
+                                    IconButton(
+                                        onClick = {
+                                            editingPharmacy = pharmacy
+                                            showPharmacyDialog = true
+                                        },
+                                        modifier = Modifier.testTag("edit_pharmacy_${pharmacy.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "تعديل",
+                                            tint = TealPrimary
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { pharmacyToDelete = pharmacy },
+                                        modifier = Modifier.testTag("delete_pharmacy_${pharmacy.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "حذف",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AdminSection.LABORATORIES -> {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "قائمة المختبرات الطبية (${laboratories.size}):",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            )
+
+                            Button(
+                                onClick = {
+                                    editingLab = null
+                                    showLabDialog = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("add_lab_header_btn")
+                            ) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("إضافة مختبر", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+
+                    items(laboratories, key = { it.id }) { lab ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .testTag("admin_lab_item_${lab.id}"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = lab.name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "المشرف: ${lab.specialist}",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                                    )
+                                    Text(
+                                        text = lab.workingHours,
+                                        style = MaterialTheme.typography.labelSmall.copy(color = TealPrimary)
+                                    )
+                                }
+
+                                Row {
+                                    IconButton(
+                                        onClick = {
+                                            editingLab = lab
+                                            showLabDialog = true
+                                        },
+                                        modifier = Modifier.testTag("edit_lab_${lab.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "تعديل",
+                                            tint = TealPrimary
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { labToDelete = lab },
+                                        modifier = Modifier.testTag("delete_lab_${lab.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "حذف",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -597,43 +866,101 @@ fun AdminPortalScreen(
         )
     }
 
-    // Dialog: Change PIN
+    // Dialog: Change Password / PIN
     if (showChangePinDialog) {
         AlertDialog(
-            onDismissRequest = { showChangePinDialog = false },
-            title = { Text("تغيير رمز المرور (PIN)") },
+            onDismissRequest = {
+                showChangePinDialog = false
+                currentPasswordText = ""
+                newPasswordText = ""
+                confirmPasswordText = ""
+                pinErrorMessage = null
+            },
+            title = { Text("تغيير كلمة المرور (PIN)") },
             text = {
                 Column {
                     Text(
-                        text = "أدخل رمز المرور الجديد لبوابة الإدارة (أرقام):",
+                        text = "أدخل كلمة المرور الحالية والجديدة لبوابة الإدارة:",
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
-                        value = newPinText,
-                        onValueChange = { if (it.length <= 32) newPinText = it },
-                        label = { Text("الرمز الجديد") },
+                        value = currentPasswordText,
+                        onValueChange = { currentPasswordText = it; pinErrorMessage = null },
+                        label = { Text("كلمة المرور الحالية") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("current_password_input")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newPasswordText,
+                        onValueChange = { newPasswordText = it; pinErrorMessage = null },
+                        label = { Text("كلمة المرور الجديدة") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("new_password_input")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = confirmPasswordText,
+                        onValueChange = { confirmPasswordText = it; pinErrorMessage = null },
+                        label = { Text("تأكيد كلمة المرور الجديدة") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = pinErrorMessage != null,
+                        supportingText = {
+                            if (pinErrorMessage != null) {
+                                Text(text = pinErrorMessage!!, color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("confirm_password_input")
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newPinText.isNotBlank()) {
-                            onUpdatePin(newPinText.trim())
+                        val currentValid = verifyPin(currentPasswordText.trim())
+                        if (!currentValid) {
+                            pinErrorMessage = "كلمة المرور الحالية غير صحيحة"
+                        } else if (newPasswordText.isBlank()) {
+                            pinErrorMessage = "كلمة المرور الجديدة لا يمكن أن تكون فارغة"
+                        } else if (newPasswordText != confirmPasswordText) {
+                            pinErrorMessage = "كلمة المرور الجديدة وتأكيدها غير متطابقين"
+                        } else {
+                            onUpdatePin(newPasswordText.trim())
                             showChangePinDialog = false
-                            Toast.makeText(context, "تم حفظ رمز المرور الجديد", Toast.LENGTH_SHORT).show()
+                            currentPasswordText = ""
+                            newPasswordText = ""
+                            confirmPasswordText = ""
+                            pinErrorMessage = null
+                            Toast.makeText(context, "تم تغيير كلمة المرور بنجاح", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
+                    modifier = Modifier.testTag("save_password_btn")
                 ) {
                     Text("حفظ")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showChangePinDialog = false }) {
+                TextButton(onClick = {
+                    showChangePinDialog = false
+                    currentPasswordText = ""
+                    newPasswordText = ""
+                    confirmPasswordText = ""
+                    pinErrorMessage = null
+                }) {
                     Text("إلغاء")
                 }
             }
