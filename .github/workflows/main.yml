@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android Release App Bundle (AAB)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  bundle-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,15 +22,40 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    - name: Generate Debug Keystore
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Prepare Signing Keystore
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
-        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "Decoding provided release signing keystore from secret..."
+          echo "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
+          echo "STORE_PASSWORD=$STORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+        else
+          echo "No KEYSTORE_BASE64 secret provided. Creating release upload keystore for CI..."
+          keytool -genkey -v -keystore my-upload-key.jks \
+            -storepass android \
+            -alias upload \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Zummar Doctors Release,O=Zummar,C=IQ"
+          echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+        fi
+        echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
 
-    - name: Build Debug APK
-      run: gradle assembleDebug
+    - name: Build Release Bundle (AAB)
+      run: ./gradlew bundleRelease
 
-    - name: Upload APK
+    - name: Upload Release App Bundle
       uses: actions/upload-artifact@v4
       with:
-        name: Zummar-Doctors-App
-        path: app/build/outputs/apk/debug/*.apk
+        name: Zummar-Doctors-Release-Bundle
+        path: app/build/outputs/bundle/release/*.aab
