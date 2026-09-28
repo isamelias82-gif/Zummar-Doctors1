@@ -50,224 +50,269 @@ class DoctorRepository(
     }
 
     private fun setupPharmaciesListener() {
-        pharmaciesRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val remoteList = mutableListOf<Pharmacy>()
-                    if (snapshot.exists() && snapshot.childrenCount > 0) {
-                        for (child in snapshot.children) {
-                            try {
-                                val map = child.value as? Map<*, *>
-                                if (map != null) {
-                                    val id = (map["id"] as? Number)?.toLong() ?: 0L
-                                    val name = map["name"] as? String ?: ""
-                                    val pharmacist = map["pharmacist"] as? String ?: ""
-                                    val addressLandmark = map["addressLandmark"] as? String ?: ""
-                                    val phonesObj = map["phoneNumbers"]
-                                    val phoneNumbers = when (phonesObj) {
-                                        is List<*> -> phonesObj.filterIsInstance<String>()
-                                        else -> emptyList()
-                                    }
-                                    val onCallDays = map["onCallDays"] as? String ?: ""
-                                    val workingHours = map["workingHours"] as? String ?: ""
-                                    val isOnDutyTonight = (map["isOnDutyTonight"] as? Boolean) ?: false
-                                    val notes = map["notes"] as? String ?: ""
+        try {
+            pharmaciesRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val remoteList = mutableListOf<Pharmacy>()
+                            if (snapshot.exists() && snapshot.childrenCount > 0) {
+                                for (child in snapshot.children) {
+                                    try {
+                                        val map = child.value as? Map<*, *>
+                                        if (map != null) {
+                                            val id = (map["id"] as? Number)?.toLong() ?: 0L
+                                            val name = map["name"] as? String ?: ""
+                                            val pharmacist = map["pharmacist"] as? String ?: ""
+                                            val addressLandmark = map["addressLandmark"] as? String ?: ""
+                                            val phonesObj = map["phoneNumbers"]
+                                            val phoneNumbers = when (phonesObj) {
+                                                is List<*> -> phonesObj.filterIsInstance<String>()
+                                                else -> emptyList()
+                                            }
+                                            val onCallDays = map["onCallDays"] as? String ?: ""
+                                            val workingHours = map["workingHours"] as? String ?: ""
+                                            val isOnDutyTonight = (map["isOnDutyTonight"] as? Boolean) ?: false
+                                            val notes = map["notes"] as? String ?: ""
 
-                                    remoteList.add(
-                                        Pharmacy(
-                                            id = id,
-                                            name = name,
-                                            pharmacist = pharmacist,
-                                            addressLandmark = addressLandmark,
-                                            phoneNumbers = phoneNumbers,
-                                            onCallDays = onCallDays,
-                                            workingHours = workingHours,
-                                            isOnDutyTonight = isOnDutyTonight,
-                                            notes = notes
-                                        )
-                                    )
+                                            remoteList.add(
+                                                Pharmacy(
+                                                    id = id,
+                                                    name = name,
+                                                    pharmacist = pharmacist,
+                                                    addressLandmark = addressLandmark,
+                                                    phoneNumbers = phoneNumbers,
+                                                    onCallDays = onCallDays,
+                                                    workingHours = workingHours,
+                                                    isOnDutyTonight = isOnDutyTonight,
+                                                    notes = notes
+                                                )
+                                            )
+                                        }
+                                    } catch (e: Exception) {}
                                 }
-                            } catch (e: Exception) {}
+                                if (remoteList.isNotEmpty()) {
+                                    _pharmaciesFlow.value = remoteList
+                                } else {
+                                    _pharmaciesFlow.value = DefaultData.initialPharmacies
+                                }
+                            } else {
+                                pharmaciesRef.setValue(DefaultData.initialPharmacies)
+                                _pharmaciesFlow.value = DefaultData.initialPharmacies
+                            }
+                        } catch (e: Exception) {
+                            _pharmaciesFlow.value = DefaultData.initialPharmacies
                         }
-                        if (remoteList.isNotEmpty()) {
-                            _pharmaciesFlow.value = remoteList
-                        }
-                    } else {
-                        pharmaciesRef.setValue(DefaultData.initialPharmacies)
-                        _pharmaciesFlow.value = DefaultData.initialPharmacies
                     }
                 }
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+                override fun onCancelled(error: DatabaseError) {}
+            })
+        } catch (e: Exception) {
+            _pharmaciesFlow.value = DefaultData.initialPharmacies
+        }
     }
 
     private fun setupLaboratoriesListener() {
-        laboratoriesRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val remoteList = mutableListOf<Laboratory>()
-                    if (snapshot.exists() && snapshot.childrenCount > 0) {
-                        for (child in snapshot.children) {
-                            try {
-                                val map = child.value as? Map<*, *>
-                                if (map != null) {
-                                    val id = (map["id"] as? Number)?.toLong() ?: 0L
-                                    val name = map["name"] as? String ?: ""
-                                    val specialist = map["specialist"] as? String ?: ""
-                                    val addressLandmark = map["addressLandmark"] as? String ?: ""
-                                    val phonesObj = map["phoneNumbers"]
-                                    val phoneNumbers = when (phonesObj) {
-                                        is List<*> -> phonesObj.filterIsInstance<String>()
-                                        else -> emptyList()
-                                    }
-                                    val workingDays = map["workingDays"] as? String ?: ""
-                                    val workingHours = map["workingHours"] as? String ?: ""
-                                    val servicesObj = map["services"]
-                                    val services = when (servicesObj) {
-                                        is List<*> -> servicesObj.filterIsInstance<String>()
-                                        else -> emptyList()
-                                    }
-                                    val notes = map["notes"] as? String ?: ""
+        try {
+            laboratoriesRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val remoteList = mutableListOf<Laboratory>()
+                            if (snapshot.exists() && snapshot.childrenCount > 0) {
+                                for (child in snapshot.children) {
+                                    try {
+                                        val map = child.value as? Map<*, *>
+                                        if (map != null) {
+                                            val id = (map["id"] as? Number)?.toLong() ?: 0L
+                                            val name = map["name"] as? String ?: ""
+                                            val specialist = map["specialist"] as? String ?: ""
+                                            val addressLandmark = map["addressLandmark"] as? String ?: ""
+                                            val phonesObj = map["phoneNumbers"]
+                                            val phoneNumbers = when (phonesObj) {
+                                                is List<*> -> phonesObj.filterIsInstance<String>()
+                                                else -> emptyList()
+                                            }
+                                            val workingDays = map["workingDays"] as? String ?: ""
+                                            val workingHours = map["workingHours"] as? String ?: ""
+                                            val servicesObj = map["services"]
+                                            val services = when (servicesObj) {
+                                                is List<*> -> servicesObj.filterIsInstance<String>()
+                                                else -> emptyList()
+                                            }
+                                            val notes = map["notes"] as? String ?: ""
 
-                                    remoteList.add(
-                                        Laboratory(
-                                            id = id,
-                                            name = name,
-                                            specialist = specialist,
-                                            addressLandmark = addressLandmark,
-                                            phoneNumbers = phoneNumbers,
-                                            workingDays = workingDays,
-                                            workingHours = workingHours,
-                                            services = services,
-                                            notes = notes
-                                        )
-                                    )
+                                            remoteList.add(
+                                                Laboratory(
+                                                    id = id,
+                                                    name = name,
+                                                    specialist = specialist,
+                                                    addressLandmark = addressLandmark,
+                                                    phoneNumbers = phoneNumbers,
+                                                    workingDays = workingDays,
+                                                    workingHours = workingHours,
+                                                    services = services,
+                                                    notes = notes
+                                                )
+                                            )
+                                        }
+                                    } catch (e: Exception) {}
                                 }
-                            } catch (e: Exception) {}
+                                if (remoteList.isNotEmpty()) {
+                                    _laboratoriesFlow.value = remoteList
+                                } else {
+                                    _laboratoriesFlow.value = DefaultData.initialLaboratories
+                                }
+                            } else {
+                                laboratoriesRef.setValue(DefaultData.initialLaboratories)
+                                _laboratoriesFlow.value = DefaultData.initialLaboratories
+                            }
+                        } catch (e: Exception) {
+                            _laboratoriesFlow.value = DefaultData.initialLaboratories
                         }
-                        if (remoteList.isNotEmpty()) {
-                            _laboratoriesFlow.value = remoteList
-                        }
-                    } else {
-                        laboratoriesRef.setValue(DefaultData.initialLaboratories)
-                        _laboratoriesFlow.value = DefaultData.initialLaboratories
                     }
                 }
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
+                override fun onCancelled(error: DatabaseError) {}
+            })
+        } catch (e: Exception) {
+            _laboratoriesFlow.value = DefaultData.initialLaboratories
+        }
     }
 
     fun savePharmacies(list: List<Pharmacy>) {
         _pharmaciesFlow.value = list
-        pharmaciesRef.setValue(list)
+        try {
+            pharmaciesRef.setValue(list)
+        } catch (e: Exception) {}
     }
 
     fun saveLaboratories(list: List<Laboratory>) {
         _laboratoriesFlow.value = list
-        laboratoriesRef.setValue(list)
+        try {
+            laboratoriesRef.setValue(list)
+        } catch (e: Exception) {}
     }
 
     private fun setupAdminPinListener() {
-        adminPinRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val pin = snapshot.getValue(String::class.java)
-                if (pin != null) {
-                    cachedAdminPin = pin
-                    prefs.edit().putString("admin_pin", pin).apply()
-                } else {
-                    adminPinRef.setValue("1234")
-                    cachedAdminPin = "1234"
-                    prefs.edit().putString("admin_pin", "1234").apply()
+        try {
+            adminPinRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val pinObj = snapshot.value
+                        val pin = when (pinObj) {
+                            is String -> pinObj
+                            is Number -> pinObj.toString()
+                            else -> pinObj?.toString()
+                        }
+                        if (!pin.isNullOrEmpty()) {
+                            cachedAdminPin = pin
+                            prefs.edit().putString("admin_pin", pin).apply()
+                        } else {
+                            adminPinRef.setValue("1234")
+                            cachedAdminPin = "1234"
+                            prefs.edit().putString("admin_pin", "1234").apply()
+                        }
+                    } catch (e: Exception) {
+                        cachedAdminPin = "1234"
+                    }
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {}
-        })
+                override fun onCancelled(error: DatabaseError) {}
+            })
+        } catch (e: Exception) {
+            cachedAdminPin = "1234"
+        }
     }
 
     private fun setupFirebaseListener() {
-        doctorsRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val remoteDoctors = mutableListOf<Doctor>()
-                    if (snapshot.exists() && snapshot.childrenCount > 0) {
-                        for (child in snapshot.children) {
-                            try {
-                                val map = child.value as? Map<*, *>
-                                if (map != null) {
-                                    val id = (map["id"] as? Number)?.toLong() ?: 0L
-                                    val name = map["name"] as? String ?: ""
-                                    val title = map["title"] as? String ?: "طبيب اختصاص"
-                                    val specialty = map["specialty"] as? String ?: ""
+        try {
+            doctorsRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val remoteDoctors = mutableListOf<Doctor>()
+                            if (snapshot.exists() && snapshot.childrenCount > 0) {
+                                for (child in snapshot.children) {
+                                    try {
+                                        val map = child.value as? Map<*, *>
+                                        if (map != null) {
+                                            val id = (map["id"] as? Number)?.toLong() ?: 0L
+                                            val name = map["name"] as? String ?: ""
+                                            val title = map["title"] as? String ?: "طبيب اختصاص"
+                                            val specialty = map["specialty"] as? String ?: ""
 
-                                    val daysObj = map["days"]
-                                    val daysList = when (daysObj) {
-                                        is List<*> -> daysObj.filterIsInstance<String>()
-                                        else -> emptyList()
+                                            val daysObj = map["days"]
+                                            val daysList = when (daysObj) {
+                                                is List<*> -> daysObj.filterIsInstance<String>()
+                                                else -> emptyList()
+                                            }
+
+                                            val startHour = (map["startHour"] as? Number)?.toInt() ?: 16
+                                            val startMinute = (map["startMinute"] as? Number)?.toInt() ?: 0
+                                            val endHour = (map["endHour"] as? Number)?.toInt() ?: 20
+                                            val endMinute = (map["endMinute"] as? Number)?.toInt() ?: 0
+                                            val workingHoursText = map["workingHoursText"] as? String ?: ""
+                                            val addressLandmark = map["addressLandmark"] as? String ?: ""
+
+                                            val phonesObj = map["phoneNumbers"]
+                                            val phoneNumbers = when (phonesObj) {
+                                                is List<*> -> phonesObj.filterIsInstance<String>()
+                                                else -> emptyList()
+                                            }
+
+                                            val notes = map["notes"] as? String ?: ""
+                                            val isEmergencyAvailable = (map["isEmergencyAvailable"] as? Boolean) ?: false
+                                            val orderIndex = (map["orderIndex"] as? Number)?.toInt() ?: 0
+
+                                            val doc = Doctor(
+                                                id = id,
+                                                name = name,
+                                                title = title,
+                                                specialty = specialty,
+                                                days = daysList,
+                                                startHour = startHour,
+                                                startMinute = startMinute,
+                                                endHour = endHour,
+                                                endMinute = endMinute,
+                                                workingHoursText = workingHoursText,
+                                                addressLandmark = addressLandmark,
+                                                phoneNumbers = phoneNumbers,
+                                                notes = notes,
+                                                isEmergencyAvailable = isEmergencyAvailable,
+                                                orderIndex = orderIndex
+                                            )
+                                            remoteDoctors.add(doc)
+                                        }
+                                    } catch (e: Exception) {
+                                        // Ignore malformed children
                                     }
-
-                                    val startHour = (map["startHour"] as? Number)?.toInt() ?: 16
-                                    val startMinute = (map["startMinute"] as? Number)?.toInt() ?: 0
-                                    val endHour = (map["endHour"] as? Number)?.toInt() ?: 20
-                                    val endMinute = (map["endMinute"] as? Number)?.toInt() ?: 0
-                                    val workingHoursText = map["workingHoursText"] as? String ?: ""
-                                    val addressLandmark = map["addressLandmark"] as? String ?: ""
-
-                                    val phonesObj = map["phoneNumbers"]
-                                    val phoneNumbers = when (phonesObj) {
-                                        is List<*> -> phonesObj.filterIsInstance<String>()
-                                        else -> emptyList()
-                                    }
-
-                                    val notes = map["notes"] as? String ?: ""
-                                    val isEmergencyAvailable = (map["isEmergencyAvailable"] as? Boolean) ?: false
-                                    val orderIndex = (map["orderIndex"] as? Number)?.toInt() ?: 0
-
-                                    val doc = Doctor(
-                                        id = id,
-                                        name = name,
-                                        title = title,
-                                        specialty = specialty,
-                                        days = daysList,
-                                        startHour = startHour,
-                                        startMinute = startMinute,
-                                        endHour = endHour,
-                                        endMinute = endMinute,
-                                        workingHoursText = workingHoursText,
-                                        addressLandmark = addressLandmark,
-                                        phoneNumbers = phoneNumbers,
-                                        notes = notes,
-                                        isEmergencyAvailable = isEmergencyAvailable,
-                                        orderIndex = orderIndex
-                                    )
-                                    remoteDoctors.add(doc)
                                 }
-                            } catch (e: Exception) {
-                                // Ignore malformed children
+                                if (remoteDoctors.isNotEmpty()) {
+                                    doctorDao.clearAll()
+                                    doctorDao.insertAllDoctors(remoteDoctors)
+                                }
+                            } else {
+                                // Database is empty (null): seed initial doctor records for "Zummar Doctors"
+                                val localCount = doctorDao.getCount()
+                                val seedList = if (localCount > 0) doctorDao.getAllDoctors().first() else DefaultData.initialDoctors
+                                doctorsRef.setValue(seedList)
+                                if (localCount == 0) {
+                                    doctorDao.insertAllDoctors(seedList)
+                                }
                             }
-                        }
-                        if (remoteDoctors.isNotEmpty()) {
-                            doctorDao.clearAll()
-                            doctorDao.insertAllDoctors(remoteDoctors)
-                        }
-                    } else {
-                        // Database is empty (null): seed initial doctor records for "Zummar Doctors"
-                        val localCount = doctorDao.getCount()
-                        val seedList = if (localCount > 0) doctorDao.getAllDoctors().first() else DefaultData.initialDoctors
-                        doctorsRef.setValue(seedList)
-                        if (localCount == 0) {
-                            doctorDao.insertAllDoctors(seedList)
+                        } catch (e: Exception) {
+                            // Safe fallback
                         }
                     }
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                // Handle cancellation
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    // Handle cancellation
+                }
+            })
+        } catch (e: Exception) {
+            // Safe fallback
+        }
     }
 
     suspend fun ensureDefaultDataLoaded() = withContext(Dispatchers.IO) {
