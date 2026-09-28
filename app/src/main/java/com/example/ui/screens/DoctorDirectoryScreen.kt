@@ -373,7 +373,9 @@ fun DoctorDirectoryScreen(
                 items(doctors, key = { it.id }) { doctor ->
                     DoctorCard(
                         doctor = doctor,
-                        currentDayArabic = currentDayArabic
+                        currentDayArabic = currentDayArabic,
+                        selectedDay = selectedDay,
+                        modifier = Modifier.animateItem()
                     )
                 }
             }

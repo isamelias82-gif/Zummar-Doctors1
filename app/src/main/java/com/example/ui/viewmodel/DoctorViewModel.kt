@@ -119,31 +119,26 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
                 doc.specialty.equals(specialty, ignoreCase = true)
             }
 
-            // During live search, search across the entire directory so users immediately find doctors,
-            // with today's doctors dynamically prioritized at the top of the results.
-            val matchesDayFilter = if (isSearching || day == null) {
-                true
-            } else {
-                doc.days.contains(day)
-            }
-
-            matchesQuery && matchesSpecialty && matchesDayFilter
+            // Always show all doctors in the directory (do not filter out non-working doctors by day).
+            // Day selection dynamically floats working doctors to the top via sorting.
+            matchesQuery && matchesSpecialty
         }.sortedWith { d1, d2 ->
-            // Dynamic sorting:
-            // Priority 1: Available on target day and Open Now
-            // Priority 2: Available on target day
-            // Priority 3: Other days
+            // Dynamic priority sorting based on target day:
+            // Priority 1: Available on target day
+            // Priority 2: If viewing today, Open Now
+            // Priority 3: orderIndex / name
             val d1Avail = d1.isAvailableOnDay(activeTargetDay)
             val d2Avail = d2.isAvailableOnDay(activeTargetDay)
 
-            val d1Open = d1.isOpenNow(calendar)
-            val d2Open = d2.isOpenNow(calendar)
+            val isToday = (day == null || day == currentDayArabic)
+            val d1Open = if (isToday) d1.isOpenNow(calendar) else false
+            val d2Open = if (isToday) d2.isOpenNow(calendar) else false
 
-            val d1Score = (if (d1Avail) 10 else 0) + (if (d1Open) 5 else 0)
-            val d2Score = (if (d2Avail) 10 else 0) + (if (d2Open) 5 else 0)
+            val d1Score = (if (d1Avail) 30 else 0) + (if (d1Open) 15 else 0)
+            val d2Score = (if (d2Avail) 30 else 0) + (if (d2Open) 15 else 0)
 
             when {
-                d1Score != d2Score -> d2Score.compareTo(d1Score) // higher score first
+                d1Score != d2Score -> d2Score.compareTo(d1Score) // higher score (available/open) first
                 d1.orderIndex != d2.orderIndex -> d1.orderIndex.compareTo(d2.orderIndex)
                 else -> d1.name.compareTo(d2.name)
             }

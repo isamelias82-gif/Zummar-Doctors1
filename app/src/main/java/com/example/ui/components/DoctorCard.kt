@@ -65,11 +65,14 @@ import java.nio.charset.StandardCharsets
 fun DoctorCard(
     doctor: Doctor,
     currentDayArabic: String,
+    selectedDay: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val isOpen = doctor.isOpenNow()
-    val isAvailableToday = doctor.isAvailableOnDay(currentDayArabic)
+    val activeDay = selectedDay ?: currentDayArabic
+    val isAvailableOnActiveDay = doctor.isAvailableOnDay(activeDay)
+    val isToday = (selectedDay == null || selectedDay == currentDayArabic)
+    val isOpen = isToday && doctor.isOpenNow()
 
     Card(
         modifier = modifier
@@ -88,7 +91,7 @@ fun DoctorCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header: Avatar/Icon, Name, Specialty, and Live Status Badge
+            // Header: Avatar/Icon, Name, Specialty, and Live/Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -133,10 +136,14 @@ fun DoctorCard(
                     }
                 }
 
-                // Live Status Badge
+                // Status Badge (Live if today, or working status on selected day)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isOpen) StatusOpenContainer else StatusClosedContainer,
+                    color = if (isToday) {
+                        if (isOpen) StatusOpenContainer else StatusClosedContainer
+                    } else {
+                        if (isAvailableOnActiveDay) StatusOpenContainer else StatusClosedContainer
+                    },
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Row(
@@ -147,14 +154,28 @@ fun DoctorCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (isOpen) StatusOpen else StatusClosed)
+                                .background(
+                                    if (isToday) {
+                                        if (isOpen) StatusOpen else StatusClosed
+                                    } else {
+                                        if (isAvailableOnActiveDay) StatusOpen else StatusClosed
+                                    }
+                                )
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isOpen) "مفتوح الآن" else "مغلق حالياً",
+                            text = if (isToday) {
+                                if (isOpen) "مفتوح الآن" else "مغلق حالياً"
+                            } else {
+                                if (isAvailableOnActiveDay) "متاح في $activeDay" else "غير متاح اليوم"
+                            },
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = if (isOpen) Color(0xFF065F46) else Color(0xFF475569)
+                                color = if (isToday) {
+                                    if (isOpen) Color(0xFF065F46) else Color(0xFF475569)
+                                } else {
+                                    if (isAvailableOnActiveDay) Color(0xFF065F46) else Color(0xFF475569)
+                                }
                             )
                         )
                     }
@@ -184,16 +205,31 @@ fun DoctorCard(
                                 color = TextPrimary
                             )
                         )
-                        if (isAvailableToday) {
+                        if (isAvailableOnActiveDay) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    text = "متواجد اليوم",
+                                    text = if (isToday) "متواجد اليوم" else "متواجد في $activeDay",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = TealPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = StatusClosedContainer,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Text(
+                                    text = "غير متاح اليوم",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = StatusClosed,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
