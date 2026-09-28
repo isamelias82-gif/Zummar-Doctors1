@@ -260,13 +260,15 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
 
                 AppTab.PHARMACIES -> {
                     PharmaciesScreen(
-                        pharmacies = pharmacies
+                        pharmacies = pharmacies,
+                        onRefresh = { viewModel.refreshPharmacies() }
                     )
                 }
 
                 AppTab.LABORATORIES -> {
                     LaboratoriesScreen(
-                        laboratories = laboratories
+                        laboratories = laboratories,
+                        onRefresh = { viewModel.refreshLaboratories() }
                     )
                 }
 
@@ -295,7 +297,8 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         onUpdateSponsorBanner = { viewModel.updateSponsorBanner(it) },
                         onTogglePharmacies = { viewModel.setPharmaciesEnabled(it) },
                         onToggleLaboratories = { viewModel.setLaboratoriesEnabled(it) },
-                        onClosePortal = { viewModel.logoutAdmin() }
+                        onClosePortal = { viewModel.logoutAdmin() },
+                        onRefresh = { viewModel.refreshAll() }
                     )
                 }
             }

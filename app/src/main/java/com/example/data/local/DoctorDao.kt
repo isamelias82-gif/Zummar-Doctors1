@@ -35,6 +35,14 @@ interface DoctorDao {
     @Query("DELETE FROM doctors")
     suspend fun clearAll()
 
+    @androidx.room.Transaction
+    suspend fun replaceAll(doctors: List<Doctor>) {
+        clearAll()
+        if (doctors.isNotEmpty()) {
+            insertAllDoctors(doctors)
+        }
+    }
+
     @Query("SELECT COUNT(*) FROM doctors")
     suspend fun getCount(): Int
 }

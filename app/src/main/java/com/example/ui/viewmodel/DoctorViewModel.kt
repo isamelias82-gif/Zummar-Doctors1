@@ -320,9 +320,40 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshDoctors() {
         viewModelScope.launch {
             try {
-                repository?.ensureDefaultDataLoaded()
+                repository?.fetchDoctorsFromServer()
             } catch (e: Exception) {
                 Log.e(TAG, "Error refreshing doctors: ${e.message}")
+            }
+        }
+    }
+
+    fun refreshPharmacies() {
+        viewModelScope.launch {
+            try {
+                repository?.refreshPharmaciesAndLaboratories()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing pharmacies: ${e.message}")
+            }
+        }
+    }
+
+    fun refreshLaboratories() {
+        viewModelScope.launch {
+            try {
+                repository?.refreshPharmaciesAndLaboratories()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing laboratories: ${e.message}")
+            }
+        }
+    }
+
+    fun refreshAll() {
+        viewModelScope.launch {
+            try {
+                repository?.fetchDoctorsFromServer()
+                repository?.refreshPharmaciesAndLaboratories()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in refreshAll: ${e.message}")
             }
         }
     }

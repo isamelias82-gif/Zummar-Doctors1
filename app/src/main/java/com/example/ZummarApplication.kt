@@ -28,5 +28,13 @@ class ZummarApplication : Application() {
         } catch (e: Exception) {
             Log.w("ZummarApplication", "Custom URL FirebaseDatabase setPersistenceEnabled ignored: ${e.message}")
         }
+
+        // Pre-initialize repositories to attach active Realtime Database listeners immediately on launch
+        try {
+            com.example.data.repository.PharmacyRepository.getInstance(this)
+            com.example.data.repository.LaboratoryRepository.getInstance(this)
+        } catch (e: Exception) {
+            Log.w("ZummarApplication", "Repository listener pre-init error: ${e.message}")
+        }
     }
 }

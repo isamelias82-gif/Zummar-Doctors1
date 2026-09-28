@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PharmacyRepository(private val context: Context) {
 
@@ -64,6 +65,12 @@ class PharmacyRepository(private val context: Context) {
     private fun setupListener() {
         try {
             val ref = pharmaciesRef ?: return
+            try {
+                ref.keepSynced(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "keepSynced error: ${e.message}")
+            }
+
             ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     CoroutineScope(Dispatchers.IO).launch {
@@ -71,27 +78,54 @@ class PharmacyRepository(private val context: Context) {
                             val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
                             if (parsed.isNotEmpty()) {
                                 _pharmaciesFlow.value = parsed.sortedBy { it.id }
+                            } else if (snapshot.exists()) {
+                                // Node exists but has 0 items (e.g., all were deleted)
+                                _pharmaciesFlow.value = emptyList()
                             } else {
-                                if (!snapshot.exists() || snapshot.childrenCount == 0L) {
-                                    seedDefaultPharmacies()
-                                }
+                                // Node does not exist at all in Firebase Realtime Database
+                                seedDefaultPharmacies()
                                 _pharmaciesFlow.value = DefaultData.initialPharmacies
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error in pharmacies listener: ${e.message}")
-                            _pharmaciesFlow.value = DefaultData.initialPharmacies
                         }
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     Log.w(TAG, "Pharmacies listener cancelled: ${error.message}")
-                    _pharmaciesFlow.value = DefaultData.initialPharmacies
                 }
             })
         } catch (e: Exception) {
             Log.e(TAG, "Failed to attach listener: ${e.message}")
-            _pharmaciesFlow.value = DefaultData.initialPharmacies
+        }
+    }
+
+    /**
+     * Forces a direct fetch from the Firebase Realtime Database server,
+     * bypassing local offline cache to immediately reflect remote edits/deletions.
+     */
+    suspend fun fetchFromServer(): Boolean = withContext(Dispatchers.IO) {
+        val ref = pharmaciesRef ?: return@withContext false
+        try {
+            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
+            if (snapshot != null) {
+                val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
+                if (parsed.isNotEmpty()) {
+                    _pharmaciesFlow.value = parsed.sortedBy { it.id }
+                } else if (snapshot.exists()) {
+                    _pharmaciesFlow.value = emptyList()
+                } else {
+                    seedDefaultPharmacies()
+                    _pharmaciesFlow.value = DefaultData.initialPharmacies
+                }
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchFromServer error: ${e.message}")
+            false
         }
     }
 

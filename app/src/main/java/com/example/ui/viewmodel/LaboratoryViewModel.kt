@@ -47,4 +47,10 @@ class LaboratoryViewModel(
             repository.resetToDefaults()
         }
     }
+
+    fun refresh() {
+        viewModelScope.launch {
+            repository.fetchFromServer()
+        }
+    }
 }

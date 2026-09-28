@@ -47,4 +47,10 @@ class PharmacyViewModel(
             repository.resetToDefaults()
         }
     }
+
+    fun refresh() {
+        viewModelScope.launch {
+            repository.fetchFromServer()
+        }
+    }
 }

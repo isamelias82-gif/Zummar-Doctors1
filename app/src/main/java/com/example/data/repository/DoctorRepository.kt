@@ -90,215 +90,75 @@ class DoctorRepository(
 
     private var cachedAdminPasscode: String = "200120012001"
 
-    private val _pharmaciesFlow = MutableStateFlow<List<Pharmacy>>(DefaultData.initialPharmacies)
-    val pharmaciesFlow: StateFlow<List<Pharmacy>> = _pharmaciesFlow
+    // Unified single sources of truth for pharmacies and laboratories
+    private val pharmacyRepo: PharmacyRepository by lazy { PharmacyRepository.getInstance(context) }
+    private val labRepo: LaboratoryRepository by lazy { LaboratoryRepository.getInstance(context) }
 
-    private val _laboratoriesFlow = MutableStateFlow<List<Laboratory>>(DefaultData.initialLaboratories)
-    val laboratoriesFlow: StateFlow<List<Laboratory>> = _laboratoriesFlow
+    val pharmaciesFlow: StateFlow<List<Pharmacy>> get() = pharmacyRepo.pharmaciesFlow
+    val laboratoriesFlow: StateFlow<List<Laboratory>> get() = labRepo.laboratoriesFlow
 
     init {
         try {
             setupFirebaseListener()
             setupAdminPasscodeListener()
-            setupPharmaciesListener()
-            setupLaboratoriesListener()
         } catch (e: Exception) {
             Log.e(TAG, "Safe init error caught: ${e.message}")
         }
     }
 
-    private fun setupPharmaciesListener() {
-        try {
-            val ref = pharmaciesRef ?: return
-            ref.addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
-                            if (parsed.isNotEmpty()) {
-                                _pharmaciesFlow.value = parsed
-                            } else {
-                                // If database is truly empty, seed defaults
-                                if (!snapshot.exists() || snapshot.childrenCount == 0L) {
-                                    try {
-                                        ref.setValue(DefaultData.initialPharmacies)
-                                    } catch (se: Exception) {
-                                        Log.w(TAG, "Cannot seed pharmacies: ${se.message}")
-                                    }
-                                }
-                                _pharmaciesFlow.value = DefaultData.initialPharmacies
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error processing pharmacies: ${e.message}")
-                            _pharmaciesFlow.value = DefaultData.initialPharmacies
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.w(TAG, "Pharmacies listener cancelled: ${error.message}")
-                    _pharmaciesFlow.value = DefaultData.initialPharmacies
-                }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach pharmacies listener: ${e.message}")
-            _pharmaciesFlow.value = DefaultData.initialPharmacies
-        }
-    }
-
-    private fun setupLaboratoriesListener() {
-        try {
-            val ref = laboratoriesRef ?: return
-            ref.addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
-                            if (parsed.isNotEmpty()) {
-                                _laboratoriesFlow.value = parsed
-                            } else {
-                                if (!snapshot.exists() || snapshot.childrenCount == 0L) {
-                                    try {
-                                        ref.setValue(DefaultData.initialLaboratories)
-                                    } catch (se: Exception) {
-                                        Log.w(TAG, "Cannot seed laboratories: ${se.message}")
-                                    }
-                                }
-                                _laboratoriesFlow.value = DefaultData.initialLaboratories
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error processing laboratories: ${e.message}")
-                            _laboratoriesFlow.value = DefaultData.initialLaboratories
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.w(TAG, "Laboratories listener cancelled: ${error.message}")
-                    _laboratoriesFlow.value = DefaultData.initialLaboratories
-                }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach laboratories listener: ${e.message}")
-            _laboratoriesFlow.value = DefaultData.initialLaboratories
-        }
-    }
-
-    fun addPharmacy(pharmacy: Pharmacy): Long {
-        val currentList = _pharmaciesFlow.value
-        val assignedId = if (pharmacy.id > 0) {
-            pharmacy.id
-        } else {
-            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
-            maxId + 1L
-        }
-        val target = pharmacy.copy(id = assignedId)
-        val updated = currentList.filterNot { it.id == assignedId } + target
-        _pharmaciesFlow.value = updated.sortedBy { it.id }
-        try {
-            pharmaciesRef?.child(assignedId.toString())?.setValue(target)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing pharmacy to /pharmacies/$assignedId: ${e.message}")
-        }
-        return assignedId
-    }
+    fun addPharmacy(pharmacy: Pharmacy): Long = pharmacyRepo.addPharmacy(pharmacy)
 
     fun updatePharmacy(pharmacy: Pharmacy) {
-        val targetId = pharmacy.id
-        val currentList = _pharmaciesFlow.value
-        val updated = currentList.map { if (it.id == targetId) pharmacy else it }
-        _pharmaciesFlow.value = updated
-        try {
-            pharmaciesRef?.child(targetId.toString())?.setValue(pharmacy)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating pharmacy at /pharmacies/$targetId: ${e.message}")
-        }
+        pharmacyRepo.updatePharmacy(pharmacy)
     }
 
     fun deletePharmacy(pharmacyId: Long) {
-        val currentList = _pharmaciesFlow.value
-        _pharmaciesFlow.value = currentList.filterNot { it.id == pharmacyId }
-        try {
-            pharmaciesRef?.child(pharmacyId.toString())?.removeValue()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting pharmacy at /pharmacies/$pharmacyId: ${e.message}")
-        }
+        pharmacyRepo.deletePharmacy(pharmacyId)
     }
 
     fun deletePharmacy(pharmacy: Pharmacy) {
-        deletePharmacy(pharmacy.id)
+        pharmacyRepo.deletePharmacy(pharmacy)
     }
 
     fun savePharmacies(list: List<Pharmacy>) {
-        _pharmaciesFlow.value = list
-        try {
-            val map = mutableMapOf<String, Pharmacy>()
-            list.forEach { p -> map[p.id.toString()] = p }
-            pharmaciesRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving pharmacies: ${e.message}")
-        }
+        pharmacyRepo.savePharmacies(list)
     }
 
-    fun addLaboratory(laboratory: Laboratory): Long {
-        val currentList = _laboratoriesFlow.value
-        val assignedId = if (laboratory.id > 0) {
-            laboratory.id
-        } else {
-            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
-            maxId + 1L
-        }
-        val target = laboratory.copy(id = assignedId)
-        val updated = currentList.filterNot { it.id == assignedId } + target
-        _laboratoriesFlow.value = updated.sortedBy { it.id }
-        try {
-            laboratoriesRef?.child(assignedId.toString())?.setValue(target)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing laboratory to /laboratories/$assignedId: ${e.message}")
-        }
-        return assignedId
-    }
+    fun addLaboratory(laboratory: Laboratory): Long = labRepo.addLaboratory(laboratory)
 
     fun updateLaboratory(laboratory: Laboratory) {
-        val targetId = laboratory.id
-        val currentList = _laboratoriesFlow.value
-        val updated = currentList.map { if (it.id == targetId) laboratory else it }
-        _laboratoriesFlow.value = updated
-        try {
-            laboratoriesRef?.child(targetId.toString())?.setValue(laboratory)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating laboratory at /laboratories/$targetId: ${e.message}")
-        }
+        labRepo.updateLaboratory(laboratory)
     }
 
     fun deleteLaboratory(laboratoryId: Long) {
-        val currentList = _laboratoriesFlow.value
-        _laboratoriesFlow.value = currentList.filterNot { it.id == laboratoryId }
-        try {
-            laboratoriesRef?.child(laboratoryId.toString())?.removeValue()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting laboratory at /laboratories/$laboratoryId: ${e.message}")
-        }
+        labRepo.deleteLaboratory(laboratoryId)
     }
 
     fun deleteLaboratory(laboratory: Laboratory) {
-        deleteLaboratory(laboratory.id)
+        labRepo.deleteLaboratory(laboratory)
     }
 
     fun saveLaboratories(list: List<Laboratory>) {
-        _laboratoriesFlow.value = list
+        labRepo.saveLaboratories(list)
+    }
+
+    suspend fun refreshPharmaciesAndLaboratories() = withContext(Dispatchers.IO) {
         try {
-            val map = mutableMapOf<String, Laboratory>()
-            list.forEach { lab -> map[lab.id.toString()] = lab }
-            laboratoriesRef?.setValue(map)
+            pharmacyRepo.fetchFromServer()
+            labRepo.fetchFromServer()
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving laboratories: ${e.message}")
+            Log.e(TAG, "Error refreshing pharmacies and labs: ${e.message}")
         }
     }
 
     private fun setupAdminPasscodeListener() {
         try {
             val ref = adminPasscodeRef ?: return
+            try {
+                ref.keepSynced(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "keepSynced error on adminPasscodeRef: ${e.message}")
+            }
             ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     try {
@@ -330,25 +190,31 @@ class DoctorRepository(
     private fun setupFirebaseListener() {
         try {
             val ref = doctorsRef ?: return
+            try {
+                ref.keepSynced(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "keepSynced error on doctorsRef: ${e.message}")
+            }
             ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
                             val remoteDoctors = SafeFirebaseParser.parseDoctors(snapshot)
                             if (remoteDoctors.isNotEmpty()) {
+                                doctorDao.replaceAll(remoteDoctors)
+                            } else if (snapshot.exists()) {
+                                // Node exists but has 0 items (e.g. all doctors deleted)
                                 doctorDao.clearAll()
-                                doctorDao.insertAllDoctors(remoteDoctors)
                             } else {
-                                val localCount = doctorDao.getCount()
-                                val seedList = if (localCount > 0) doctorDao.getAllDoctors().first() else DefaultData.initialDoctors
+                                // Node does not exist in Firebase RTDB yet -> seed defaults
+                                val initial = DefaultData.initialDoctors
+                                val map = initial.associateBy { it.id.toString() }
                                 try {
-                                    ref.setValue(seedList)
+                                    ref.setValue(map)
                                 } catch (e: Exception) {
                                     Log.w(TAG, "Could not seed doctors: ${e.message}")
                                 }
-                                if (localCount == 0) {
-                                    doctorDao.insertAllDoctors(seedList)
-                                }
+                                doctorDao.replaceAll(initial)
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Safe fallback in doctors listener: ${e.message}")
@@ -365,16 +231,54 @@ class DoctorRepository(
         }
     }
 
+    /**
+     * Forces a direct fetch from the Firebase Realtime Database server,
+     * bypassing local cache and updating Room database with remote changes and deletions.
+     */
+    suspend fun fetchDoctorsFromServer(): Boolean = withContext(Dispatchers.IO) {
+        val ref = doctorsRef ?: return@withContext false
+        try {
+            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
+            if (snapshot != null) {
+                val remoteDoctors = SafeFirebaseParser.parseDoctors(snapshot)
+                if (remoteDoctors.isNotEmpty()) {
+                    doctorDao.replaceAll(remoteDoctors)
+                } else if (snapshot.exists()) {
+                    doctorDao.clearAll()
+                } else {
+                    val initial = DefaultData.initialDoctors
+                    val map = initial.associateBy { it.id.toString() }
+                    try {
+                        ref.setValue(map)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not seed doctors: ${e.message}")
+                    }
+                    doctorDao.replaceAll(initial)
+                }
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching doctors from server: ${e.message}")
+            false
+        }
+    }
+
     suspend fun ensureDefaultDataLoaded() = withContext(Dispatchers.IO) {
         try {
-            val count = doctorDao.getCount()
-            if (count == 0) {
-                val initial = DefaultData.initialDoctors
-                doctorDao.insertAllDoctors(initial)
-                try {
-                    doctorsRef?.setValue(initial)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error writing initial doctors: ${e.message}")
+            val fetched = fetchDoctorsFromServer()
+            if (!fetched) {
+                val count = doctorDao.getCount()
+                if (count == 0) {
+                    val initial = DefaultData.initialDoctors
+                    doctorDao.replaceAll(initial)
+                    try {
+                        val map = initial.associateBy { it.id.toString() }
+                        doctorsRef?.setValue(map)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error writing initial doctors: ${e.message}")
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -386,7 +290,8 @@ class DoctorRepository(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val currentList = doctorDao.getAllDoctors().first()
-                doctorsRef?.setValue(currentList)
+                val map = currentList.associateBy { it.id.toString() }
+                doctorsRef?.setValue(map)
             } catch (e: Exception) {
                 Log.e(TAG, "Error syncing to Firebase: ${e.message}")
             }
@@ -395,28 +300,48 @@ class DoctorRepository(
 
     suspend fun insertDoctor(doctor: Doctor): Long = withContext(Dispatchers.IO) {
         val id = doctorDao.insertDoctor(doctor)
+        val doctorWithId = doctor.copy(id = id)
+        try {
+            doctorsRef?.child(id.toString())?.setValue(doctorWithId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting doctor node $id: ${e.message}")
+        }
         syncToFirebase()
         id
     }
 
     suspend fun updateDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
         doctorDao.updateDoctor(doctor)
+        try {
+            doctorsRef?.child(doctor.id.toString())?.setValue(doctor)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating doctor node ${doctor.id}: ${e.message}")
+        }
         syncToFirebase()
     }
 
     suspend fun deleteDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
         doctorDao.deleteDoctor(doctor)
+        try {
+            doctorsRef?.child(doctor.id.toString())?.removeValue()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing doctor node ${doctor.id}: ${e.message}")
+        }
         syncToFirebase()
     }
 
     suspend fun deleteDoctorById(id: Long) = withContext(Dispatchers.IO) {
         doctorDao.deleteDoctorById(id)
+        try {
+            doctorsRef?.child(id.toString())?.removeValue()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing doctor node $id: ${e.message}")
+        }
         syncToFirebase()
     }
 
     suspend fun resetToDefaultData() = withContext(Dispatchers.IO) {
-        doctorDao.clearAll()
-        doctorDao.insertAllDoctors(DefaultData.initialDoctors)
+        doctorDao.replaceAll(DefaultData.initialDoctors)
         syncToFirebase()
     }
 

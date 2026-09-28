@@ -5,6 +5,14 @@ import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
 import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 /**
  * Robust parser for Firebase Realtime Database snapshots.
@@ -267,6 +275,46 @@ object SafeFirebaseParser {
             }
             is Number -> listOf(value.toString())
             else -> emptyList()
+        }
+    }
+
+    /**
+     * Forces a direct fetch from the Firebase Realtime Database server,
+     * ensuring connection is active and bypassing local disk cache.
+     */
+    suspend fun fetchDirectFromServer(ref: DatabaseReference, timeoutMs: Long = 7000L): DataSnapshot? = withContext(Dispatchers.IO) {
+        try {
+            try {
+                ref.database.goOnline()
+            } catch (e: Exception) {
+                Log.w(TAG, "goOnline ignored: ${e.message}")
+            }
+
+            withTimeoutOrNull(timeoutMs) {
+                suspendCancellableCoroutine { continuation ->
+                    // ref.get() bypasses local offline cache and attempts direct server fetch
+                    ref.get().addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            if (continuation.isActive) continuation.resume(task.result)
+                        } else {
+                            Log.w(TAG, "ref.get() failed: ${task.exception?.message}, attempting addListenerForSingleValueEvent")
+                            ref.addListenerForSingleValueEvent(object : ValueEventListener {
+                                override fun onDataChange(snapshot: DataSnapshot) {
+                                    if (continuation.isActive) continuation.resume(snapshot)
+                                }
+
+                                override fun onCancelled(error: DatabaseError) {
+                                    Log.e(TAG, "Single listener cancelled: ${error.message}")
+                                    if (continuation.isActive) continuation.resume(null)
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in fetchDirectFromServer: ${e.message}")
+            null
         }
     }
 }

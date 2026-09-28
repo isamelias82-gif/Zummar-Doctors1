@@ -55,6 +55,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -93,6 +96,7 @@ enum class AdminSection {
     LABORATORIES
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AdminPortalScreen(
     doctors: List<Doctor>,
@@ -119,10 +123,12 @@ fun AdminPortalScreen(
     onTogglePharmacies: (Boolean) -> Unit,
     onToggleLaboratories: (Boolean) -> Unit,
     onClosePortal: () -> Unit,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
 
     var adminSection by remember { mutableStateOf(AdminSection.DOCTORS) }
 
@@ -157,10 +163,22 @@ fun AdminPortalScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    onRefresh()
+                    delay(800L)
+                    isRefreshing = false
+                }
+            },
+            modifier = Modifier.fillMaxSize()
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 96.dp)
+            ) {
             // Header
             item {
                 Box(
@@ -208,15 +226,36 @@ fun AdminPortalScreen(
                                 }
                             }
 
-                            IconButton(
-                                onClick = { showChangePinDialog = true },
-                                modifier = Modifier.testTag("change_pin_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Key,
-                                    contentDescription = "تغيير الرمز",
-                                    tint = Color.White
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            isRefreshing = true
+                                            onRefresh()
+                                            delay(800L)
+                                            isRefreshing = false
+                                            Toast.makeText(context, "تم تحديث البيانات من خادم Firebase", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier.testTag("admin_refresh_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "تحديث من الخادم",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { showChangePinDialog = true },
+                                    modifier = Modifier.testTag("change_pin_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Key,
+                                        contentDescription = "تغيير الرمز",
+                                        tint = Color.White
+                                    )
+                                }
                             }
                         }
                     }
@@ -723,6 +762,7 @@ fun AdminPortalScreen(
                     }
                 }
             }
+        }
         }
 
         // Dynamic FAB to Add Doctor / Pharmacy / Laboratory

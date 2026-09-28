@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LaboratoryRepository(private val context: Context) {
 
@@ -64,6 +65,12 @@ class LaboratoryRepository(private val context: Context) {
     private fun setupListener() {
         try {
             val ref = laboratoriesRef ?: return
+            try {
+                ref.keepSynced(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "keepSynced error: ${e.message}")
+            }
+
             ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     CoroutineScope(Dispatchers.IO).launch {
@@ -71,27 +78,54 @@ class LaboratoryRepository(private val context: Context) {
                             val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
                             if (parsed.isNotEmpty()) {
                                 _laboratoriesFlow.value = parsed.sortedBy { it.id }
+                            } else if (snapshot.exists()) {
+                                // Node exists but has 0 items (e.g., all were deleted)
+                                _laboratoriesFlow.value = emptyList()
                             } else {
-                                if (!snapshot.exists() || snapshot.childrenCount == 0L) {
-                                    seedDefaultLaboratories()
-                                }
+                                // Node does not exist at all in Firebase Realtime Database
+                                seedDefaultLaboratories()
                                 _laboratoriesFlow.value = DefaultData.initialLaboratories
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error in laboratories listener: ${e.message}")
-                            _laboratoriesFlow.value = DefaultData.initialLaboratories
                         }
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     Log.w(TAG, "Laboratories listener cancelled: ${error.message}")
-                    _laboratoriesFlow.value = DefaultData.initialLaboratories
                 }
             })
         } catch (e: Exception) {
             Log.e(TAG, "Failed to attach listener: ${e.message}")
-            _laboratoriesFlow.value = DefaultData.initialLaboratories
+        }
+    }
+
+    /**
+     * Forces a direct fetch from the Firebase Realtime Database server,
+     * bypassing local offline cache to immediately reflect remote edits/deletions.
+     */
+    suspend fun fetchFromServer(): Boolean = withContext(Dispatchers.IO) {
+        val ref = laboratoriesRef ?: return@withContext false
+        try {
+            val snapshot = SafeFirebaseParser.fetchDirectFromServer(ref)
+            if (snapshot != null) {
+                val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
+                if (parsed.isNotEmpty()) {
+                    _laboratoriesFlow.value = parsed.sortedBy { it.id }
+                } else if (snapshot.exists()) {
+                    _laboratoriesFlow.value = emptyList()
+                } else {
+                    seedDefaultLaboratories()
+                    _laboratoriesFlow.value = DefaultData.initialLaboratories
+                }
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchFromServer error: ${e.message}")
+            false
         }
     }
 
