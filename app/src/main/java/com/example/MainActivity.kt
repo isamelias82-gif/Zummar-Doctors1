@@ -227,7 +227,8 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         onSearchChanged = { viewModel.onSearchQueryChanged(it) },
                         onDaySelected = { viewModel.onDaySelected(it) },
                         onSpecialtySelected = { viewModel.onSpecialtySelected(it) },
-                        onAdminTriggered = { showPinDialog = true }
+                        onAdminTriggered = { showPinDialog = true },
+                        onRefresh = { viewModel.refreshDoctors() }
                     )
                 }
 

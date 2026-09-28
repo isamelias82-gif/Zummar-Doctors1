@@ -248,4 +248,10 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
             _currentTab.value = AppTab.DOCTORS
         }
     }
+
+    fun refreshDoctors() {
+        viewModelScope.launch {
+            repository.ensureDefaultDataLoaded()
+        }
+    }
 }
