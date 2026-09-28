@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الإدارية - أطباء زمار</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+    </style>
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <!-- Header / Navbar -->
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center space-x-3 space-x-reverse mb-3 md:mb-0">
+                <div class="bg-white text-indigo-600 p-2 rounded-lg shadow">
+                    <i class="fa-solid fa-user-doctor text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold">لوحة تحكم أطباء زمار</h1>
+                    <p class="text-xs text-indigo-200">إدارة الأطباء، الصيدليات، والمختبرات (تحديث مباشر عبر Firebase)</p>
+                </div>
+            </div>
+            <div id="connection-status" class="flex items-center space-x-2 space-x-reverse bg-indigo-700 px-3 py-1.5 rounded-full text-xs font-semibold shadow-inner">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" id="status-dot"></span>
+                <span id="status-text">جاري الاتصال بـ Firebase...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container mx-auto px-4 py-6">
+        
+        <!-- Tabs Navigation -->
+        <div class="flex border-b border-gray-200 mb-6 space-x-2 space-x-reverse">
+            <button onclick="switchTab('doctors')" id="tab-doctors" class="tab-btn px-6 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-2 space-x-reverse transition">
+                <i class="fa-solid fa-stethoscope ml-2"></i> الأطباء (/doctors)
+            </button>
+            <button onclick="switchTab('pharmacies')" id="tab-pharmacies" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition">
+                <i class="fa-solid fa-pills ml-2"></i> الصيدليات (/pharmacies)
+            </button>
+            <button onclick="switchTab('laboratories')" id="tab-laboratories" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition">
+                <i class="fa-solid fa-flask ml-2"></i> المختبرات (/laboratories)
+            </button>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="hidden mb-4 p-4 rounded-lg text-white font-medium shadow-md transition transform duration-300"></div>
+
+        <!-- DOCTORS SECTION -->
+        <section id="section-doctors" class="space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">قائمة الأطباء</h2>
+                    <p class="text-sm text-gray-500">إضافة وتعديل بيانات الأطباء وتخصصاتهم وساعات العمل.</p>
+                </div>
+                <button onclick="openDoctorModal('add')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>إضافة طبيب جديد</span>
+                </button>
+            </div>
+
+            <!-- Doctors Table / Cards -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3 px-4"># معرف</th>
+                                <th class="py-3 px-4">اسم الطبيب</th>
+                                <th class="py-3 px-4">التخصص / اللقب</th>
+                                <th class="py-3 px-4">أرقام الهواتف</th>
+                                <th class="py-3 px-4">أوقات العمل</th>
+                                <th class="py-3 px-4">العنوان</th>
+                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doctors-tbody" class="divide-y divide-gray-200 text-sm">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- PHARMACIES SECTION -->
+        <section id="section-pharmacies" class="space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">قائمة الصيدليات</h2>
+                    <p class="text-sm text-gray-500">إدارة الصيدليات ومناوباتها وأوقات العمل.</p>
+                </div>
+                <button onclick="openPharmacyModal('add')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>إضافة صيدلية جديدة</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3 px-4"># معرف</th>
+                                <th class="py-3 px-4">اسم الصيدلية</th>
+                                <th class="py-3 px-4">الصيدلاني المسؤول</th>
+                                <th class="py-3 px-4">الهاتف</th>
+                                <th class="py-3 px-4">أوقات العمل</th>
+                                <th class="py-3 px-4">العنوان</th>
+                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pharmacies-tbody" class="divide-y divide-gray-200 text-sm">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- LABORATORIES SECTION -->
+        <section id="section-laboratories" class="space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">قائمة المختبرات</h2>
+                    <p class="text-sm text-gray-500">إدارة المختبرات الطبية والتحليلات وأوقات العمل.</p>
+                </div>
+                <button onclick="openLabModal('add')" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>إضافة مختبر جديد</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3 px-4"># معرف</th>
+                                <th class="py-3 px-4">اسم المختبر</th>
+                                <th class="py-3 px-4">الأخصائي المسؤول</th>
+                                <th class="py-3 px-4">الهاتف</th>
+                                <th class="py-3 px-4">أوقات العمل</th>
+                                <th class="py-3 px-4">العنوان</th>
+                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="laboratories-tbody" class="divide-y divide-gray-200 text-sm">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- DOCTOR MODAL -->
+    <div id="doctor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center">
+                <h3 id="doctor-modal-title" class="font-bold text-lg">إضافة طبيب جديد</h3>
+                <button onclick="closeModal('doctor-modal')" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="doctor-form" onsubmit="saveDoctor(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="doc-id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم الطبيب *</label>
+                    <input type="text" id="doc-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: د. أحمد محمد">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">التخصص *</label>
+                        <input type="text" id="doc-specialty" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طب الأطفال">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">اللقب / المسمى</label>
+                        <input type="text" id="doc-title" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طبيب اختصاص">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
+                    <input type="text" id="doc-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="07800000000, 07700000000">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل / التوقيت</label>
+                    <input type="text" id="doc-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: من 4 عصراً إلى 8 مساءً">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / أقرب نقطة دالة</label>
+                    <input type="text" id="doc-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: شارع الأطباء، قرب عيادة...">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات</label>
+                    <textarea id="doc-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ملاحظات إضافية..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
+                    <button type="button" onclick="closeModal('doctor-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow">حفظ الطبيب</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PHARMACY MODAL -->
+    <div id="pharmacy-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
+                <h3 id="pharmacy-modal-title" class="font-bold text-lg">إضافة صيدلية جديدة</h3>
+                <button onclick="closeModal('pharmacy-modal')" class="text-emerald-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="pharmacy-form" onsubmit="savePharmacy(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="pharm-id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصيدلية *</label>
+                    <input type="text" id="pharm-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: صيدلية النور">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">الصيدلاني المسؤول</label>
+                    <input type="text" id="pharm-pharmacist" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الصيدلاني أحمد">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
+                    <input type="text" id="pharm-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="07800000000">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
+                    <input type="text" id="pharm-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: 8 صباحاً - 11 مساءً">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
+                    <input type="text" id="pharm-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الشارع العام">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات / مناوبات</label>
+                    <textarea id="pharm-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ملاحظات المناوبة..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
+                    <button type="button" onclick="closeModal('pharmacy-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow">حفظ الصيدلية</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LABORATORY MODAL -->
+    <div id="laboratory-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="bg-teal-600 px-6 py-4 text-white flex justify-between items-center">
+                <h3 id="lab-modal-title" class="font-bold text-lg">إضافة مختبر جديد</h3>
+                <button onclick="closeModal('laboratory-modal')" class="text-teal-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="lab-form" onsubmit="saveLaboratory(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="lab-id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم المختبر *</label>
+                    <input type="text" id="lab-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: مختبر الشفاء للتحليلات">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">الأخصائي المسؤول</label>
+                    <input type="text" id="lab-specialist" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: د. محمد علي">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
+                    <input type="text" id="lab-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07800000000">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
+                    <input type="text" id="lab-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: 7 صباحاً - 9 مساءً">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
+                    <input type="text" id="lab-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: قرب المستشفى العام">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات / خدمات</label>
+                    <textarea id="lab-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="الفحوصات المتاحة..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
+                    <button type="button" onclick="closeModal('laboratory-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold shadow">حفظ المختبر</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Configuration and Logic Script -->
+    <script>
+        // Firebase Configuration Constants from google-services.json
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUzr_tRj8ZFnDALQWV27IjrriPDx58leY",
+            databaseURL: "https://zummar-doctors-default-rtdb.firebaseio.com",
+            projectId: "zummar-doctors"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+
+        // Connection status monitoring
+        const connectedRef = rtdb.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            const statusDot = document.getElementById("status-dot");
+            const statusText = document.getElementById("status-text");
+            if (snap.val() === true) {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+                statusText.innerText = "متصل بـ Firebase Realtime Database (مزامنة فورية)";
+            } else {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse";
+                statusText.innerText = "غير متصل - جاري إعادة الاتصال...";
+            }
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition";
+            });
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+
+            if (tabName === 'doctors') {
+                document.getElementById('tab-doctors').className = "tab-btn px-6 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('section-doctors').classList.remove('hidden');
+            } else if (tabName === 'pharmacies') {
+                document.getElementById('tab-pharmacies').className = "tab-btn px-6 py-3 font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('section-pharmacies').classList.remove('hidden');
+            } else if (tabName === 'laboratories') {
+                document.getElementById('tab-laboratories').className = "tab-btn px-6 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('section-laboratories').classList.remove('hidden');
+            }
+        }
+
+        // Toast notification helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.className = `mb-4 p-4 rounded-lg text-white font-medium shadow-md transition transform duration-300 ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+
+        // Modal Helpers
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // --- DOCTORS CRUD ---
+        const doctorsRef = rtdb.ref('doctors');
+        let doctorsData = {};
+
+        doctorsRef.on('value', (snapshot) => {
+            doctorsData = snapshot.val() || {};
+            renderDoctors();
+        });
+
+        function renderDoctors() {
+            const tbody = document.getElementById('doctors-tbody');
+            const list = [];
+            for (let key in doctorsData) {
+                if (doctorsData.hasOwnProperty(key)) {
+                    list.push({ firebaseKey: key, ...doctorsData[key] });
+                }
+            }
+            // Sort by id or order
+            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد بيانات أطباء مسجلة حالياً.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(doc => {
+                const phones = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '-');
+                const hours = doc.workingHoursText || 'غير محدد';
+                const address = doc.addressLandmark || '-';
+                return `
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${doc.id || doc.firebaseKey}</td>
+                        <td class="py-3 px-4 font-bold text-gray-900">${doc.name || ''}</td>
+                        <td class="py-3 px-4">
+                            <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold">${doc.specialty || ''}</span>
+                            <div class="text-xs text-gray-400 mt-0.5">${doc.title || ''}</div>
+                        </td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-600" dir="ltr">${phones}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${hours}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${address}</td>
+                        <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
+                            <button onclick="openDoctorModal('edit', '${doc.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteDoctor('${doc.firebaseKey}', '${doc.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openDoctorModal(mode, key = null) {
+            document.getElementById('doctor-modal').classList.remove('hidden');
+            const form = document.getElementById('doctor-form');
+            form.reset();
+            if (mode === 'add') {
+                document.getElementById('doctor-modal-title').innerText = 'إضافة طبيب جديد';
+                document.getElementById('doc-id').value = '';
+            } else {
+                document.getElementById('doctor-modal-title').innerText = 'تعديل بيانات الطبيب';
+                const doc = doctorsData[key];
+                if (doc) {
+                    document.getElementById('doc-id').value = doc.id || key;
+                    document.getElementById('doc-name').value = doc.name || '';
+                    document.getElementById('doc-specialty').value = doc.specialty || '';
+                    document.getElementById('doc-title').value = doc.title || '';
+                    document.getElementById('doc-phones').value = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '');
+                    document.getElementById('doc-hours').value = doc.workingHoursText || '';
+                    document.getElementById('doc-address').value = doc.addressLandmark || '';
+                    document.getElementById('doc-notes').value = doc.notes || '';
+                    // store firebaseKey reference
+                    form.dataset.firebaseKey = key;
+                }
+            }
+        }
+
+        function saveDoctor(e) {
+            e.preventDefault();
+            const form = document.getElementById('doctor-form');
+            const customId = document.getElementById('doc-id').value;
+            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
+            const numericId = customId ? parseInt(customId) : Date.now();
+
+            const phonesRaw = document.getElementById('doc-phones').value;
+            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+            const doctorObj = {
+                id: numericId,
+                name: document.getElementById('doc-name').value,
+                specialty: document.getElementById('doc-specialty').value,
+                title: document.getElementById('doc-title').value || 'طبيب اختصاص',
+                phoneNumbers: phoneList,
+                workingHoursText: document.getElementById('doc-hours').value,
+                addressLandmark: document.getElementById('doc-address').value,
+                notes: document.getElementById('doc-notes').value,
+                days: ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"],
+                startHour: 16,
+                startMinute: 0,
+                endHour: 20,
+                endMinute: 0,
+                isEmergencyAvailable: false,
+                orderIndex: 0
+            };
+
+            rtdb.ref('doctors/' + numericId).set(doctorObj)
+                .then(() => {
+                    showToast('تم حفظ بيانات الطبيب بنجاح وتحديث أجهزة الموبايل فوراً!');
+                    closeModal('doctor-modal');
+                    delete form.dataset.firebaseKey;
+                })
+                .catch(err => {
+                    showToast('حدث خطأ أثناء الحفظ: ' + err.message, 'error');
+                });
+        }
+
+        function deleteDoctor(key, name) {
+            if (confirm(`هل أنت متأكد من حذف الطبيب "${name}"؟`)) {
+                rtdb.ref('doctors/' + key).remove()
+                    .then(() => {
+                        showToast('تم حذف الطبيب بنجاح.');
+                    })
+                    .catch(err => {
+                        showToast('خطأ في الحذف: ' + err.message, 'error');
+                    });
+            }
+        }
+
+
+        // --- PHARMACIES CRUD ---
+        const pharmaciesRef = rtdb.ref('pharmacies');
+        let pharmaciesData = {};
+
+        pharmaciesRef.on('value', (snapshot) => {
+            pharmaciesData = snapshot.val() || {};
+            renderPharmacies();
+        });
+
+        function renderPharmacies() {
+            const tbody = document.getElementById('pharmacies-tbody');
+            const list = [];
+            for (let key in pharmaciesData) {
+                if (pharmaciesData.hasOwnProperty(key)) {
+                    list.push({ firebaseKey: key, ...pharmaciesData[key] });
+                }
+            }
+            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد صيدليات مسجلة حالياً.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(p => {
+                const phones = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '-');
+                return `
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${p.id || p.firebaseKey}</td>
+                        <td class="py-3 px-4 font-bold text-gray-900">${p.name || ''}</td>
+                        <td class="py-3 px-4 text-xs text-gray-700">${p.pharmacist || '-'}</td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-600" dir="ltr">${phones}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${p.workingHours || '-'}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${p.addressLandmark || '-'}</td>
+                        <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
+                            <button onclick="openPharmacyModal('edit', '${p.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePharmacy('${p.firebaseKey}', '${p.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openPharmacyModal(mode, key = null) {
+            document.getElementById('pharmacy-modal').classList.remove('hidden');
+            const form = document.getElementById('pharmacy-form');
+            form.reset();
+            if (mode === 'add') {
+                document.getElementById('pharmacy-modal-title').innerText = 'إضافة صيدلية جديدة';
+                document.getElementById('pharm-id').value = '';
+            } else {
+                document.getElementById('pharmacy-modal-title').innerText = 'تعديل بيانات الصيدلية';
+                const p = pharmaciesData[key];
+                if (p) {
+                    document.getElementById('pharm-id').value = p.id || key;
+                    document.getElementById('pharm-name').value = p.name || '';
+                    document.getElementById('pharm-pharmacist').value = p.pharmacist || '';
+                    document.getElementById('pharm-phones').value = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '');
+                    document.getElementById('pharm-hours').value = p.workingHours || '';
+                    document.getElementById('pharm-address').value = p.addressLandmark || '';
+                    document.getElementById('pharm-notes').value = p.notes || '';
+                    form.dataset.firebaseKey = key;
+                }
+            }
+        }
+
+        function savePharmacy(e) {
+            e.preventDefault();
+            const form = document.getElementById('pharmacy-form');
+            const customId = document.getElementById('pharm-id').value;
+            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
+            const numericId = customId ? parseInt(customId) : Date.now();
+
+            const phonesRaw = document.getElementById('pharm-phones').value;
+            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+            const pharmObj = {
+                id: numericId,
+                name: document.getElementById('pharm-name').value,
+                pharmacist: document.getElementById('pharm-pharmacist').value,
+                phoneNumbers: phoneList,
+                workingHours: document.getElementById('pharm-hours').value,
+                addressLandmark: document.getElementById('pharm-address').value,
+                notes: document.getElementById('pharm-notes').value,
+                isOnDutyTonight: false,
+                onCallDays: ""
+            };
+
+            rtdb.ref('pharmacies/' + numericId).set(pharmObj)
+                .then(() => {
+                    showToast('تم حفظ الصيدلية بنجاح ومزامنتها فوراً!');
+                    closeModal('pharmacy-modal');
+                    delete form.dataset.firebaseKey;
+                })
+                .catch(err => {
+                    showToast('خطأ: ' + err.message, 'error');
+                });
+        }
+
+        function deletePharmacy(key, name) {
+            if (confirm(`هل أنت متأكد من حذف صيدلية "${name}"؟`)) {
+                rtdb.ref('pharmacies/' + key).remove()
+                    .then(() => {
+                        showToast('تم حذف الصيدلية بنجاح.');
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            }
+        }
+
+
+        // --- LABORATORIES CRUD ---
+        const labsRef = rtdb.ref('laboratories');
+        let labsData = {};
+
+        labsRef.on('value', (snapshot) => {
+            labsData = snapshot.val() || {};
+            renderLabs();
+        });
+
+        function renderLabs() {
+            const tbody = document.getElementById('laboratories-tbody');
+            const list = [];
+            for (let key in labsData) {
+                if (labsData.hasOwnProperty(key)) {
+                    list.push({ firebaseKey: key, ...labsData[key] });
+                }
+            }
+            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد مختبرات مسجلة حالياً.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(lab => {
+                const phones = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '-');
+                return `
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${lab.id || lab.firebaseKey}</td>
+                        <td class="py-3 px-4 font-bold text-gray-900">${lab.name || ''}</td>
+                        <td class="py-3 px-4 text-xs text-gray-700">${lab.specialist || '-'}</td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-600" dir="ltr">${phones}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${lab.workingHours || '-'}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${lab.addressLandmark || '-'}</td>
+                        <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
+                            <button onclick="openLabModal('edit', '${lab.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteLab('${lab.firebaseKey}', '${lab.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openLabModal(mode, key = null) {
+            document.getElementById('laboratory-modal').classList.remove('hidden');
+            const form = document.getElementById('lab-form');
+            form.reset();
+            if (mode === 'add') {
+                document.getElementById('lab-modal-title').innerText = 'إضافة مختبر جديد';
+                document.getElementById('lab-id').value = '';
+            } else {
+                document.getElementById('lab-modal-title').innerText = 'تعديل بيانات المختبر';
+                const lab = labsData[key];
+                if (lab) {
+                    document.getElementById('lab-id').value = lab.id || key;
+                    document.getElementById('lab-name').value = lab.name || '';
+                    document.getElementById('lab-specialist').value = lab.specialist || '';
+                    document.getElementById('lab-phones').value = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '');
+                    document.getElementById('lab-hours').value = lab.workingHours || '';
+                    document.getElementById('lab-address').value = lab.addressLandmark || '';
+                    document.getElementById('lab-notes').value = lab.notes || '';
+                    form.dataset.firebaseKey = key;
+                }
+            }
+        }
+
+        function saveLaboratory(e) {
+            e.preventDefault();
+            const form = document.getElementById('lab-form');
+            const customId = document.getElementById('lab-id').value;
+            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
+            const numericId = customId ? parseInt(customId) : Date.now();
+
+            const phonesRaw = document.getElementById('lab-phones').value;
+            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+            const labObj = {
+                id: numericId,
+                name: document.getElementById('lab-name').value,
+                specialist: document.getElementById('lab-specialist').value,
+                phoneNumbers: phoneList,
+                workingHours: document.getElementById('lab-hours').value,
+                addressLandmark: document.getElementById('lab-address').value,
+                notes: document.getElementById('lab-notes').value,
+                workingDays: "",
+                services: []
+            };
+
+            rtdb.ref('laboratories/' + numericId).set(labObj)
+                .then(() => {
+                    showToast('تم حفظ المختبر بنجاح ومزامنتها فوراً!');
+                    closeModal('laboratory-modal');
+                    delete form.dataset.firebaseKey;
+                })
+                .catch(err => {
+                    showToast('خطأ: ' + err.message, 'error');
+                });
+        }
+
+        function deleteLab(key, name) {
+            if (confirm(`هل أنت متأكد من حذف مختبر "${name}"؟`)) {
+                rtdb.ref('laboratories/' + key).remove()
+                    .then(() => {
+                        showToast('تم حذف المختبر بنجاح.');
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
