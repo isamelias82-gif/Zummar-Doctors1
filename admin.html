@@ -381,7 +381,7 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
                         <span>أرقام الهواتف (رقم الاتصال والحجز) *</span>
-                        <button type="button" onclick="addPhoneInput('doc-phones-container', 'doc-phone-item', 'focus:ring-indigo-500')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg transition">
+                        <button type="button" onclick="addPhoneField('doc-phones-container', 'doc-phone-item', 'focus:ring-indigo-500')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg transition">
                             <i class="fa-solid fa-plus text-[10px]"></i> إضافة رقم آخر
                         </button>
                     </label>
@@ -518,7 +518,7 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
                         <span>أرقام الهواتف *</span>
-                        <button type="button" onclick="addPhoneInput('pharm-phones-container', 'pharm-phone-item', 'focus:ring-emerald-500')" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg transition">
+                        <button type="button" onclick="addPhoneField('pharm-phones-container', 'pharm-phone-item', 'focus:ring-emerald-500')" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg transition">
                             <i class="fa-solid fa-plus text-[10px]"></i> إضافة رقم آخر
                         </button>
                     </label>
@@ -1071,10 +1071,12 @@
                                class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 ${focusRingClass} text-sm text-right"
                                placeholder="07800000000">
                     </div>
-                    ${index > 0 ? `<button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+                    ${index > 0 ? `<button type="button" onclick="this.parentElement.remove(); document.getElementById('${containerId}').parentElement.querySelector('button[onclick*=\\'addPhoneField\\']').style.display = 'flex';" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
                 `;
                 container.appendChild(div);
             });
+            const addButton = container.parentElement.querySelector('button[onclick*="addPhoneField"]');
+            if (addButton) addButton.style.display = numbers.length >= 3 ? 'none' : 'flex';
         }
 
         function addPhoneField(containerId, inputName, focusRingClass) {
@@ -1095,9 +1097,13 @@
                            class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 ${focusRingClass} text-sm text-right"
                            placeholder="07800000000">
                 </div>
-                <button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>
+                <button type="button" onclick="this.parentElement.remove(); document.getElementById('${containerId}').parentElement.querySelector('button[onclick*=\\'addPhoneField\\']').style.display = 'flex';" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>
             `;
             container.appendChild(div);
+            
+            if (container.children.length >= 3) {
+                container.parentElement.querySelector('button[onclick*="addPhoneField"]').style.display = 'none';
+            }
         }
 
         function getPhoneList(containerId, inputName) {
