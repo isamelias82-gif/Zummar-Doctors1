@@ -61,9 +61,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
 import com.example.R
 import com.example.data.model.Doctor
 import com.example.data.model.SponsorBanner
+import com.example.data.model.StaticBanner
 import com.example.ui.components.DaySelectorBar
 import com.example.ui.components.DoctorCard
 import com.example.ui.components.SpecialtyFilterRow
@@ -82,6 +85,7 @@ import kotlinx.coroutines.launch
 fun DoctorDirectoryScreen(
     doctors: List<Doctor>,
     sponsorBanner: SponsorBanner,
+    staticBanner: StaticBanner,
     searchQuery: String,
     selectedDay: String?,
     selectedSpecialty: String?,
@@ -172,15 +176,17 @@ fun DoctorDirectoryScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Top Sponsorship Banner (Position: Fixed directly above the main doctor list / search bar)
+                        // Top Sponsorship Banner (Position: Fixed between header and search bar)
                         if (sponsorBanner.isCurrentlyActive()) {
                             TopSponsorshipBanner(
                                 banner = sponsorBanner,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(top = 16.dp)
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Search Banner (Above Search Bar)
 
                         // Search Bar Inside Header
                         OutlinedTextField(
@@ -230,21 +236,40 @@ fun DoctorDirectoryScreen(
 
             // Banner Image
             item {
+                val context = LocalContext.current
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .clickable {
+                            if (staticBanner.actionLink.isNotBlank()) {
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(staticBanner.actionLink)))
+                                } catch (e: Exception) { /* Handle error */ }
+                            }
+                        },
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.zummar_medical_banner),
-                        contentDescription = "شعار مجمع زمار الطبي",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(115.dp),
-                        contentScale = ContentScale.Crop
-                    )
+                    if (staticBanner.imagePath.isNotBlank()) {
+                        coil.compose.AsyncImage(
+                            model = staticBanner.imagePath,
+                            contentDescription = "بانر",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(115.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.zummar_medical_banner),
+                            contentDescription = "شعار مجمع زمار الطبي",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(115.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
 

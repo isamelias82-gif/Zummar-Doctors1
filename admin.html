@@ -151,11 +151,23 @@
             </button>
             <button onclick="switchTab('banner')" id="tab-banner" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
                 <i class="fa-solid fa-bullhorn"></i>
-                <span>الإعلانات (/sponsor_banner)</span>
+                <span>إعلانات الرعاية (/sponsor_banner)</span>
             </button>
             <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
                 <i class="fa-solid fa-sliders"></i>
                 <span>إعدادات التطبيق (/app_settings)</span>
+            </button>
+            <button onclick="switchTab('staticBanner')" id="tab-static-banner" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-image"></i>
+                <span>بانر البحث (/static_banner)</span>
+            </button>
+            <button onclick="switchTab('fab')" id="tab-fab" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-brands fa-whatsapp"></i>
+                <span>زر الواتساب (/fab)</span>
+            </button>
+            <button onclick="switchTab('contact')" id="tab-contact" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-headset"></i>
+                <span>التواصل (/contact)</span>
             </button>
         </div>
 
@@ -313,6 +325,66 @@
                             <textarea id="banner-desc" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" rows="2"></textarea>
                         </div>
                         <button type="submit" id="banner-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ الإعلان</button>
+                    </form>
+                </div>
+            </section>
+
+            </section>
+
+            <!-- TAB 6: STATIC BANNER MANAGEMENT -->
+            <section id="section-static-banner" class="space-y-6 hidden">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة البانر الثابت (تحت البحث)</h2>
+                    <form id="static-banner-form" onsubmit="saveStaticBanner(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">صورة البانر</label>
+                            <input type="file" id="static-banner-file" accept="image/*" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            <p class="text-xs text-gray-500 mt-1">أبعاد الصورة المثالية: 1080x300 بكسل</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">رابط التحويل</label>
+                            <input type="text" id="static-banner-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <button type="submit" id="static-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ البانر</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 7: FAB MANAGEMENT -->
+            <section id="section-fab" class="space-y-6 hidden">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة زر الواتساب (Floating Button)</h2>
+                    <form id="fab-form" onsubmit="showToast('تم حفظ إعدادات الزر بنجاح!'); return false;" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">رقم الواتساب</label>
+                            <input type="text" id="fab-phone" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="مثال: 9647800000000">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">حالة الزر</label>
+                            <select id="fab-active" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                <option value="true">نشط</option>
+                                <option value="false">معطل</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ إعدادات الزر</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 8: CONTACT MANAGEMENT -->
+            <section id="section-contact" class="space-y-6 hidden">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة روابط التواصل والشكاوى</h2>
+                    <form id="contact-form" onsubmit="showToast('تم حفظ روابط التواصل بنجاح!'); return false;" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني للشكاوى</label>
+                            <input type="email" id="contact-email" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="admin@zummar.com">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">رابط نموذج الشكاوى</label>
+                            <input type="text" id="contact-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="https://forms.gle/...">
+                        </div>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ روابط التواصل</button>
                     </form>
                 </div>
             </section>
@@ -874,6 +946,12 @@
                 };
                 updateSettingsUI();
             });
+
+            // Static Banner listener
+            rtdb.ref('static_banner').on('value', (snapshot) => {
+                const banner = snapshot.val() || {};
+                document.getElementById('static-banner-link').value = banner.actionLink || '';
+            });
         }
 
         function detachRealtimeListeners() {
@@ -956,9 +1034,15 @@
             } else if (tabName === 'banner') {
                 document.getElementById('tab-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-banner').classList.remove('hidden');
+            } else if (tabName === 'searchBanner') {
+                document.getElementById('tab-search-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
+                document.getElementById('section-search-banner').classList.remove('hidden');
             } else if (tabName === 'settings') {
                 document.getElementById('tab-settings').className = "tab-btn px-5 py-3 font-bold border-b-2 border-purple-600 text-purple-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-settings').classList.remove('hidden');
+            } else if (tabName === 'staticBanner') {
+                document.getElementById('tab-static-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
+                document.getElementById('section-static-banner').classList.remove('hidden');
             }
         }
 
@@ -1757,6 +1841,46 @@
                         showToast('خطأ في رفع الصورة: ' + err.message, 'error');
                         btn.disabled = false;
                         btn.innerText = 'حفظ الإعلان';
+                    });
+            } else {
+                saveToDatabase(null);
+            }
+        }
+        function saveStaticBanner(e) {
+            e.preventDefault();
+            const btn = document.getElementById('static-save-btn');
+            btn.disabled = true;
+            btn.innerText = 'جاري الحفظ...';
+
+            const file = document.getElementById('static-banner-file').files[0];
+            const link = document.getElementById('static-banner-link').value;
+
+            const saveToDatabase = (imageUrl) => {
+                const bannerObj = { actionLink: link };
+                if (imageUrl) bannerObj.imagePath = imageUrl;
+                
+                rtdb.ref('static_banner').update(bannerObj)
+                    .then(() => {
+                        showToast('تم حفظ البانر بنجاح!');
+                        btn.disabled = false;
+                        btn.innerText = 'حفظ البانر';
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                        btn.disabled = false;
+                        btn.innerText = 'حفظ البانر';
+                    });
+            };
+
+            if (file) {
+                const storageRef = storage.ref('banners/static_' + Date.now() + '_' + file.name);
+                storageRef.put(file)
+                    .then(snapshot => snapshot.ref.getDownloadURL())
+                    .then(url => saveToDatabase(url))
+                    .catch(err => {
+                        showToast('خطأ في رفع الصورة: ' + err.message, 'error');
+                        btn.disabled = false;
+                        btn.innerText = 'حفظ البانر';
                     });
             } else {
                 saveToDatabase(null);

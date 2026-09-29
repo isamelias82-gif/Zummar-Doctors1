@@ -10,6 +10,7 @@ import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
 import com.example.data.model.SponsorBanner
+import com.example.data.model.StaticBanner
 import com.example.data.repository.DoctorRepository
 import com.example.util.ArabicSearchUtils
 import kotlinx.coroutines.FlowPreview
@@ -110,12 +111,24 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     private val _sponsorBanner = MutableStateFlow(SponsorBanner.defaultBanner)
     val sponsorBanner: StateFlow<SponsorBanner> = _sponsorBanner
 
+    private val _staticBanner = MutableStateFlow(StaticBanner())
+    val staticBanner: StateFlow<StaticBanner> = _staticBanner
+
     init {
         try {
             repository?.let { repo ->
                 _sponsorBanner.value = repo.getSponsorBanner()
                 repo.reconnectRealtime()
             }
+            // Add Static Banner Listener
+            com.google.firebase.database.FirebaseDatabase.getInstance()
+                .getReference("static_banner")
+                .addValueEventListener(object : com.google.firebase.database.ValueEventListener {
+                    override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                        _staticBanner.value = snapshot.getValue(com.example.data.model.StaticBanner::class.java) ?: com.example.data.model.StaticBanner()
+                    }
+                    override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+                })
         } catch (e: Exception) {
             Log.e(TAG, "ViewModel init exception handled safely: ${e.message}")
         }

@@ -50,7 +50,8 @@ data class SponsorBanner(
             actionValue = "+9647875023922",
             expiryDate = "2026-12-31",
             title = "مجمع النور الطبي التخصصي - زمار",
-            description = ""
+            description = "",
+            actionLink = ""
         )
     }
 }

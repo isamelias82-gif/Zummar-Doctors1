@@ -260,6 +260,7 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                     DoctorDirectoryScreen(
                         doctors = filteredDoctors,
                         sponsorBanner = sponsorBanner,
+                        staticBanner = viewModel.staticBanner.collectAsStateWithLifecycle().value,
                         searchQuery = searchQuery,
                         selectedDay = selectedDay,
                         selectedSpecialty = selectedSpecialty,
