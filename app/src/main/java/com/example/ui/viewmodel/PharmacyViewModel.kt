@@ -22,32 +22,6 @@ class PharmacyViewModel(
             initialValue = repository.pharmaciesFlow.value
         )
 
-    fun addPharmacy(pharmacy: Pharmacy): Long {
-        return repository.addPharmacy(pharmacy)
-    }
-
-    fun updatePharmacy(pharmacy: Pharmacy) {
-        viewModelScope.launch {
-            repository.updatePharmacy(pharmacy)
-        }
-    }
-
-    fun deletePharmacy(pharmacyId: Long) {
-        viewModelScope.launch {
-            repository.deletePharmacy(pharmacyId)
-        }
-    }
-
-    fun deletePharmacy(pharmacy: Pharmacy) {
-        deletePharmacy(pharmacy.id)
-    }
-
-    fun resetToDefaults() {
-        viewModelScope.launch {
-            repository.resetToDefaults()
-        }
-    }
-
     fun refresh() {
         viewModelScope.launch {
             repository.reconnectRealtime()

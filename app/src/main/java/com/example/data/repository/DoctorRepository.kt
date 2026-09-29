@@ -2,8 +2,8 @@ package com.example.data.repository
 
 import android.content.Context
 import android.util.Log
-import com.example.data.local.DefaultData
 import com.example.data.local.DoctorDao
+import com.example.data.model.AppSettings
 import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
@@ -69,23 +69,104 @@ class DoctorRepository(
         }
     }
 
-    private val adminPasscodeRef: DatabaseReference? by lazy {
+    private val appSettingsRef: DatabaseReference? by lazy {
         try {
-            firebaseDatabase?.getReference("admin_passcode")
+            firebaseDatabase?.getReference("app_settings")
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting adminPasscodeRef: ${e.message}")
+            Log.e(TAG, "Error getting appSettingsRef: ${e.message}")
             null
         }
     }
 
-    private var cachedAdminPasscode: String = "200120012001"
+    /**
+     * Live Kotlin callbackFlow streaming section toggle feature flags (/app_settings) from Firebase.
+     */
+    fun getAppSettingsFlow(): Flow<AppSettings> = callbackFlow {
+        val initialCached = AppSettings(
+            pharmaciesEnabled = prefs.getBoolean("pharmacies_enabled", true),
+            laboratoriesEnabled = prefs.getBoolean("laboratories_enabled", true)
+        )
+        trySend(initialCached)
+
+        val ref = appSettingsRef
+        if (ref == null) {
+            awaitClose { }
+            return@callbackFlow
+        }
+
+        try {
+            ref.keepSynced(true)
+        } catch (e: Exception) {
+            Log.w(TAG, "keepSynced error on appSettingsRef: ${e.message}")
+        }
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val pharmChild = snapshot.child("pharmacies_enabled")
+                    val labChild = snapshot.child("laboratories_enabled")
+
+                    val pharmaciesEnabled = if (pharmChild.exists()) {
+                        SafeFirebaseParser.parseBoolean(pharmChild.value)
+                    } else {
+                        true
+                    }
+
+                    val laboratoriesEnabled = if (labChild.exists()) {
+                        SafeFirebaseParser.parseBoolean(labChild.value)
+                    } else {
+                        true
+                    }
+
+                    prefs.edit()
+                        .putBoolean("pharmacies_enabled", pharmaciesEnabled)
+                        .putBoolean("laboratories_enabled", laboratoriesEnabled)
+                        .apply()
+
+                    trySend(
+                        AppSettings(
+                            pharmaciesEnabled = pharmaciesEnabled,
+                            laboratoriesEnabled = laboratoriesEnabled
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing app_settings: ${e.message}")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "AppSettings listener cancelled: ${error.message}")
+            }
+        }
+
+        ref.addValueEventListener(listener)
+        awaitClose {
+            ref.removeEventListener(listener)
+        }
+    }
+
+    fun isPharmaciesEnabled(): Boolean = prefs.getBoolean("pharmacies_enabled", true)
+    fun isLaboratoriesEnabled(): Boolean = prefs.getBoolean("laboratories_enabled", true)
+
+    fun setPharmaciesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("pharmacies_enabled", enabled).apply()
+        try {
+            appSettingsRef?.child("pharmacies_enabled")?.setValue(enabled)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error setting pharmacies_enabled in remote: ${e.message}")
+        }
+    }
+
+    fun setLaboratoriesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("laboratories_enabled", enabled).apply()
+        try {
+            appSettingsRef?.child("laboratories_enabled")?.setValue(enabled)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error setting laboratories_enabled in remote: ${e.message}")
+        }
+    }
 
     init {
-        try {
-            setupAdminPasscodeListener()
-        } catch (e: Exception) {
-            Log.e(TAG, "Safe init error caught: ${e.message}")
-        }
     }
 
     /**
@@ -125,11 +206,10 @@ class DoctorRepository(
                             doctorDao.clearAll()
                         }
                     } else {
-                        // Node does not exist at all in Firebase RTDB, seed initial data
-                        seedDefaultDoctors()
-                        trySend(DefaultData.initialDoctors)
+                        // Node does not exist at all in Firebase RTDB
+                        trySend(emptyList())
                         CoroutineScope(Dispatchers.IO).launch {
-                            doctorDao.replaceAll(DefaultData.initialDoctors)
+                            doctorDao.clearAll()
                         }
                     }
                 } catch (e: Exception) {
@@ -144,6 +224,7 @@ class DoctorRepository(
 
         ref.addValueEventListener(listener)
 
+
         awaitClose {
             ref.removeEventListener(listener)
         }
@@ -151,174 +232,13 @@ class DoctorRepository(
 
     val allDoctors: Flow<List<Doctor>> get() = getDoctorsFlow()
 
-    private fun seedDefaultDoctors() {
-        try {
-            val ref = doctorsRef ?: return
-            val map = DefaultData.initialDoctors.associateBy { it.id.toString() }
-            ref.setValue(map)
-        } catch (e: Exception) {
-            Log.w(TAG, "Cannot seed doctors in Firebase: ${e.message}")
-        }
-    }
-
-    // Pharmacy delegation
-    fun addPharmacy(pharmacy: Pharmacy): Long = pharmacyRepo.addPharmacy(pharmacy)
-    fun updatePharmacy(pharmacy: Pharmacy) = pharmacyRepo.updatePharmacy(pharmacy)
-    fun deletePharmacy(pharmacyId: Long) = pharmacyRepo.deletePharmacy(pharmacyId)
-    fun deletePharmacy(pharmacy: Pharmacy) = pharmacyRepo.deletePharmacy(pharmacy)
-    fun savePharmacies(list: List<Pharmacy>) = pharmacyRepo.savePharmacies(list)
-
-    // Laboratory delegation
-    fun addLaboratory(laboratory: Laboratory): Long = labRepo.addLaboratory(laboratory)
-    fun updateLaboratory(laboratory: Laboratory) = labRepo.updateLaboratory(laboratory)
-    fun deleteLaboratory(laboratoryId: Long) = labRepo.deleteLaboratory(laboratoryId)
-    fun deleteLaboratory(laboratory: Laboratory) = labRepo.deleteLaboratory(laboratory)
-    fun saveLaboratories(list: List<Laboratory>) = labRepo.saveLaboratories(list)
-
-    private fun setupAdminPasscodeListener() {
-        try {
-            val ref = adminPasscodeRef ?: return
-            try {
-                ref.keepSynced(true)
-            } catch (e: Exception) {
-                Log.w(TAG, "keepSynced error on adminPasscodeRef: ${e.message}")
-            }
-            ref.addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    try {
-                        val passcode = snapshot.value?.toString()?.trim()
-                        if (!passcode.isNullOrEmpty()) {
-                            cachedAdminPasscode = passcode
-                            prefs.edit().putString("admin_passcode", passcode).apply()
-                        } else {
-                            try {
-                                ref.setValue("200120012001")
-                            } catch (e: Exception) {}
-                            cachedAdminPasscode = "200120012001"
-                            prefs.edit().putString("admin_passcode", "200120012001").apply()
-                        }
-                    } catch (e: Exception) {
-                        cachedAdminPasscode = "200120012001"
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    cachedAdminPasscode = prefs.getString("admin_passcode", "200120012001") ?: "200120012001"
-                }
-            })
-        } catch (e: Exception) {
-            cachedAdminPasscode = "200120012001"
-        }
-    }
-
-    suspend fun insertDoctor(doctor: Doctor): Long = withContext(Dispatchers.IO) {
-        val assignedId = if (doctor.id > 0L) {
-            doctor.id
-        } else {
-            val currentCount = doctorDao.getCount().toLong()
-            System.currentTimeMillis().coerceAtLeast(currentCount + 1L)
-        }
-        val doctorWithId = doctor.copy(id = assignedId)
-        doctorDao.insertDoctor(doctorWithId)
-
-        // Write directly to /doctors/$assignedId so it triggers onDataChange for all listening clients
-        try {
-            doctorsRef?.child(assignedId.toString())?.setValue(doctorWithId)
-                ?.addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to write doctor $assignedId: ${e.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error inserting doctor node $assignedId: ${e.message}")
-        }
-        assignedId
-    }
-
-    suspend fun updateDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
-        doctorDao.updateDoctor(doctor)
-        // Update directly at /doctors/$id
-        try {
-            doctorsRef?.child(doctor.id.toString())?.setValue(doctor)
-                ?.addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to update doctor ${doctor.id}: ${e.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating doctor node ${doctor.id}: ${e.message}")
-        }
-    }
-
-    suspend fun deleteDoctor(doctor: Doctor) = withContext(Dispatchers.IO) {
-        doctorDao.deleteDoctor(doctor)
-        // Delete directly at /doctors/$id
-        try {
-            doctorsRef?.child(doctor.id.toString())?.removeValue()
-                ?.addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to delete doctor ${doctor.id}: ${e.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing doctor node ${doctor.id}: ${e.message}")
-        }
-    }
-
-    suspend fun deleteDoctorById(id: Long) = withContext(Dispatchers.IO) {
-        doctorDao.deleteDoctorById(id)
-        // Delete directly at /doctors/$id
-        try {
-            doctorsRef?.child(id.toString())?.removeValue()
-                ?.addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to delete doctor $id: ${e.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing doctor node $id: ${e.message}")
-        }
-    }
-
-    suspend fun resetToDefaultData() = withContext(Dispatchers.IO) {
-        doctorDao.replaceAll(DefaultData.initialDoctors)
-        try {
-            val map = DefaultData.initialDoctors.associateBy { it.id.toString() }
-            doctorsRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resetting doctors in Firebase: ${e.message}")
-        }
-    }
-
     fun reconnectRealtime() {
         try {
             firebaseDatabase?.goOnline()
         } catch (e: Exception) {
             Log.w(TAG, "goOnline error: ${e.message}")
         }
-        pharmacyRepo.reconnectRealtime()
-        labRepo.reconnectRealtime()
     }
-
-    // Dynamic Admin Passcode management
-    fun getAdminPasscode(): String {
-        return cachedAdminPasscode.ifEmpty {
-            prefs.getString("admin_passcode", "200120012001") ?: "200120012001"
-        }
-    }
-
-    fun getAdminPin(): String = getAdminPasscode()
-
-    fun setAdminPasscode(passcode: String) {
-        val trimmed = passcode.trim()
-        try {
-            adminPasscodeRef?.setValue(trimmed)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting admin passcode: ${e.message}")
-        }
-        prefs.edit().putString("admin_passcode", trimmed).apply()
-        cachedAdminPasscode = trimmed
-    }
-
-    fun setAdminPin(pin: String) = setAdminPasscode(pin)
-
-    fun verifyPasscode(enteredPasscode: String): Boolean {
-        return enteredPasscode.trim() == getAdminPasscode()
-    }
-
-    fun verifyPin(enteredPin: String): Boolean = verifyPasscode(enteredPin)
 
     // Sponsor Banner Management
     fun getSponsorBanner(): SponsorBanner {
@@ -340,40 +260,6 @@ class DoctorRepository(
         } catch (e: Exception) {
             SponsorBanner.defaultBanner
         }
-    }
-
-    fun saveSponsorBanner(banner: SponsorBanner) {
-        try {
-            val obj = JSONObject().apply {
-                put("banner_id", banner.bannerId)
-                put("is_active", banner.isActive)
-                put("image_path", banner.imagePath)
-                put("action_type", banner.actionType)
-                put("action_value", banner.actionValue)
-                put("expiry_date", banner.expiryDate)
-                put("title", banner.title)
-            }
-            prefs.edit().putString("sponsor_banner_json", obj.toString()).apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving sponsor banner: ${e.message}")
-        }
-    }
-
-    // Secondary Sections (Pharmacies & Laboratories) Availability Control
-    fun isPharmaciesEnabled(): Boolean {
-        return prefs.getBoolean("is_pharmacies_enabled", false)
-    }
-
-    fun setPharmaciesEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("is_pharmacies_enabled", enabled).apply()
-    }
-
-    fun isLaboratoriesEnabled(): Boolean {
-        return prefs.getBoolean("is_laboratories_enabled", false)
-    }
-
-    fun setLaboratoriesEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("is_laboratories_enabled", enabled).apply()
     }
 
     // Export database to JSON string
@@ -418,90 +304,11 @@ class DoctorRepository(
         root.put("appName", "أطباء زمار")
         root.put("doctors", jsonArray)
         root.put("sponsor_banner", bannerObj)
-        root.put("is_pharmacies_enabled", isPharmaciesEnabled())
-        root.put("is_laboratories_enabled", isLaboratoriesEnabled())
         root.toString(2)
     }
 
     // Import database from JSON string
     suspend fun importDatabaseFromJson(jsonString: String): Result<Int> = withContext(Dispatchers.IO) {
-        try {
-            val root = JSONObject(jsonString)
-            if (root.has("is_pharmacies_enabled")) {
-                setPharmaciesEnabled(root.getBoolean("is_pharmacies_enabled"))
-            }
-            if (root.has("is_laboratories_enabled")) {
-                setLaboratoriesEnabled(root.getBoolean("is_laboratories_enabled"))
-            }
-            if (root.has("sponsor_banner")) {
-                val bObj = root.getJSONObject("sponsor_banner")
-                val banner = SponsorBanner(
-                    bannerId = bObj.optString("banner_id", "sponsor_01"),
-                    isActive = bObj.optBoolean("is_active", true),
-                    imagePath = bObj.optString("image_path", ""),
-                    actionType = bObj.optString("action_type", "WHATSAPP"),
-                    actionValue = bObj.optString("action_value", "+9647875023922"),
-                    expiryDate = bObj.optString("expiry_date", ""),
-                    title = bObj.optString("title", "مجمع النور الطبي التخصصي")
-                )
-                saveSponsorBanner(banner)
-            }
-            val jsonArray = root.getJSONArray("doctors")
-            val importedDoctors = mutableListOf<Doctor>()
-
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-
-                val daysList = mutableListOf<String>()
-                val daysArr = obj.optJSONArray("days")
-                if (daysArr != null) {
-                    for (j in 0 until daysArr.length()) {
-                        daysList.add(daysArr.getString(j))
-                    }
-                }
-
-                val phonesList = mutableListOf<String>()
-                val phonesArr = obj.optJSONArray("phoneNumbers")
-                if (phonesArr != null) {
-                    for (j in 0 until phonesArr.length()) {
-                        phonesList.add(phonesArr.getString(j))
-                    }
-                }
-
-                val doc = Doctor(
-                    id = if (obj.has("id")) obj.getLong("id") else 0,
-                    name = obj.getString("name"),
-                    title = obj.optString("title", "طبيب اختصاص"),
-                    specialty = obj.getString("specialty"),
-                    days = daysList,
-                    startHour = obj.optInt("startHour", 16),
-                    startMinute = obj.optInt("startMinute", 0),
-                    endHour = obj.optInt("endHour", 20),
-                    endMinute = obj.optInt("endMinute", 0),
-                    workingHoursText = obj.optString("workingHoursText", ""),
-                    addressLandmark = obj.optString("addressLandmark", ""),
-                    phoneNumbers = phonesList,
-                    notes = obj.optString("notes", ""),
-                    isEmergencyAvailable = obj.optBoolean("isEmergencyAvailable", false),
-                    orderIndex = obj.optInt("orderIndex", i + 1)
-                )
-                importedDoctors.add(doc)
-            }
-
-            if (importedDoctors.isNotEmpty()) {
-                doctorDao.replaceAll(importedDoctors)
-                try {
-                    val map = importedDoctors.associateBy { it.id.toString() }
-                    doctorsRef?.setValue(map)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error writing imported doctors to Firebase: ${e.message}")
-                }
-                Result.success(importedDoctors.size)
-            } else {
-                Result.failure(Exception("الملف لا يحتوي على أطباء"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
+        Result.failure(Exception("Import disabled in read-only mode"))
         }
-    }
 }

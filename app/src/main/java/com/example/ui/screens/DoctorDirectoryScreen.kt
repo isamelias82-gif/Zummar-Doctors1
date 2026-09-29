@@ -89,13 +89,9 @@ fun DoctorDirectoryScreen(
     onSearchChanged: (String) -> Unit,
     onDaySelected: (String?) -> Unit,
     onSpecialtySelected: (String?) -> Unit,
-    onAdminTriggered: () -> Unit,
     onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Hidden Admin Trigger State: exactly 10 consecutive taps on header logo
-    var tapCount by remember { mutableIntStateOf(0) }
-    var lastTapTime by remember { mutableLongStateOf(0L) }
     var isRefreshing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -146,25 +142,6 @@ fun DoctorDirectoryScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .testTag("app_header_logo")
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) {
-                                        val now = System.currentTimeMillis()
-                                        // Reset count if delay between consecutive clicks exceeds 2.5 seconds
-                                        if (now - lastTapTime > 2500L) {
-                                            tapCount = 1
-                                        } else {
-                                            tapCount++
-                                        }
-                                        lastTapTime = now
-
-                                        // Opens when clicking exactly 10 times consecutively without any hints or toasts
-                                        if (tapCount == 10) {
-                                            tapCount = 0
-                                            onAdminTriggered()
-                                        }
-                                    }
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(

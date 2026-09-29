@@ -14,80 +14,175 @@
         body {
             font-family: 'Cairo', sans-serif;
         }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
-    <!-- Firebase SDK Compat -->
+    <!-- Firebase SDK Compat (App, Auth, Database) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800">
+<body class="bg-gray-50 min-h-screen text-gray-800 flex flex-col">
 
     <!-- Header / Navbar -->
-    <header class="bg-indigo-600 text-white shadow-md">
-        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
-            <div class="flex items-center space-x-3 space-x-reverse mb-3 md:mb-0">
-                <div class="bg-white text-indigo-600 p-2 rounded-lg shadow">
+    <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="bg-white text-indigo-600 p-2 rounded-xl shadow-sm">
                     <i class="fa-solid fa-user-doctor text-2xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold">لوحة تحكم أطباء زمار</h1>
-                    <p class="text-xs text-indigo-200">إدارة الأطباء، الصيدليات، والمختبرات (تحديث مباشر عبر Firebase)</p>
+                    <h1 class="text-xl font-bold tracking-tight">لوحة تحكم أطباء زمار</h1>
+                    <p class="text-xs text-indigo-200">إدارة الأطباء، الصيدليات، المختبرات وإعدادات التطبيق</p>
                 </div>
             </div>
-            <div id="connection-status" class="flex items-center space-x-2 space-x-reverse bg-indigo-700 px-3 py-1.5 rounded-full text-xs font-semibold shadow-inner">
-                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" id="status-dot"></span>
-                <span id="status-text">جاري الاتصال بـ Firebase...</span>
+
+            <!-- Right Controls: User info & Connection Status -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- User Profile & Sign Out (Visible only when logged in) -->
+                <div id="user-info-bar" class="hidden items-center gap-2 bg-indigo-700/70 border border-indigo-500/50 px-3 py-1.5 rounded-xl text-xs">
+                    <div class="flex items-center gap-1.5 text-indigo-100">
+                        <i class="fa-solid fa-circle-user text-sm"></i>
+                        <span id="user-email-display" class="font-medium text-white max-w-[150px] truncate" dir="ltr"></span>
+                    </div>
+                    <button onclick="handleSignOut()" class="bg-red-500/90 hover:bg-red-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm" title="تسجيل الخروج">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>خروج</span>
+                    </button>
+                </div>
+
+                <!-- Database Status Indicator -->
+                <div id="connection-status" class="flex items-center gap-2 bg-indigo-800/80 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-inner border border-indigo-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" id="status-dot"></span>
+                    <span id="status-text">جاري الاتصال...</span>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="container mx-auto px-4 py-6">
+    <!-- Global Toast Notification -->
+    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 hidden px-6 py-3 rounded-xl text-white font-medium shadow-2xl transition-all duration-300 max-w-md w-full text-center"></div>
+
+    <!-- 1. LOGIN SCREEN (Shown when logged out) -->
+    <div id="login-screen" class="flex-1 flex items-center justify-center px-4 py-12">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-50 text-indigo-600 mb-4 shadow-inner">
+                    <i class="fa-solid fa-shield-halved text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900">تسجيل الدخول للمشرف</h2>
+                <p class="text-sm text-gray-500 mt-2">لوحة الإدارة الطبية - ناحية زمار</p>
+            </div>
+
+            <!-- Error message container -->
+            <div id="login-error" class="hidden mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation text-base flex-shrink-0"></i>
+                <span id="login-error-text"></span>
+            </div>
+
+            <form id="login-form" onsubmit="handleSignIn(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5" for="login-email">البريد الإلكتروني</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-envelope"></i>
+                        </span>
+                        <input id="login-email" type="email" required dir="ltr"
+                               placeholder="admin@example.com"
+                               class="w-full pr-10 pl-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5" for="login-password">كلمة المرور</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input id="login-password" type="password" required dir="ltr"
+                               placeholder="••••••••"
+                               class="w-full pr-10 pl-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition">
+                    </div>
+                </div>
+
+                <button type="submit" id="login-submit-btn"
+                        class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span id="login-btn-label">تسجيل الدخول</span>
+                </button>
+            </form>
+            
+            <p class="text-center text-xs text-gray-400 mt-6">
+                محمي بواسطة Firebase Authentication
+            </p>
+        </div>
+    </div>
+
+    <!-- 2. MAIN DASHBOARD (Shown when logged in) -->
+    <main id="main-dashboard" class="container mx-auto px-4 py-6 hidden flex-1">
         
-        <!-- Tabs Navigation -->
-        <div class="flex border-b border-gray-200 mb-6 space-x-2 space-x-reverse">
-            <button onclick="switchTab('doctors')" id="tab-doctors" class="tab-btn px-6 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-2 space-x-reverse transition">
-                <i class="fa-solid fa-stethoscope ml-2"></i> الأطباء (/doctors)
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap border-b border-gray-200 mb-6 gap-2">
+            <button onclick="switchTab('doctors')" id="tab-doctors" class="tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-stethoscope"></i>
+                <span>الأطباء (/doctors)</span>
             </button>
-            <button onclick="switchTab('pharmacies')" id="tab-pharmacies" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition">
-                <i class="fa-solid fa-pills ml-2"></i> الصيدليات (/pharmacies)
+            <button onclick="switchTab('pharmacies')" id="tab-pharmacies" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-pills"></i>
+                <span>الصيدليات (/pharmacies)</span>
             </button>
-            <button onclick="switchTab('laboratories')" id="tab-laboratories" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition">
-                <i class="fa-solid fa-flask ml-2"></i> المختبرات (/laboratories)
+            <button onclick="switchTab('laboratories')" id="tab-laboratories" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-flask"></i>
+                <span>المختبرات (/laboratories)</span>
+            </button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-sliders"></i>
+                <span>إعدادات التطبيق (/app_settings)</span>
             </button>
         </div>
 
-        <!-- Toast Notification -->
-        <div id="toast" class="hidden mb-4 p-4 rounded-lg text-white font-medium shadow-md transition transform duration-300"></div>
-
-        <!-- DOCTORS SECTION -->
+        <!-- TAB 1: DOCTORS SECTION -->
         <section id="section-doctors" class="space-y-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h2 class="text-lg font-bold text-gray-800">قائمة الأطباء</h2>
+                    <h2 class="text-lg font-bold text-gray-800">قائمة الأطباء في زمار</h2>
                     <p class="text-sm text-gray-500">إضافة وتعديل بيانات الأطباء وتخصصاتهم وساعات العمل.</p>
                 </div>
-                <button onclick="openDoctorModal('add')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                <button onclick="openDoctorModal('add')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
                     <i class="fa-solid fa-plus"></i>
                     <span>إضافة طبيب جديد</span>
                 </button>
             </div>
 
-            <!-- Doctors Table / Cards -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <!-- Doctors Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-right border-collapse">
                         <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                                <th class="py-3 px-4"># معرف</th>
-                                <th class="py-3 px-4">اسم الطبيب</th>
-                                <th class="py-3 px-4">التخصص / اللقب</th>
-                                <th class="py-3 px-4">أرقام الهواتف</th>
-                                <th class="py-3 px-4">أوقات العمل</th>
-                                <th class="py-3 px-4">العنوان</th>
-                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            <tr class="bg-gray-50/80 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3.5 px-4"># المعرف</th>
+                                <th class="py-3.5 px-4">اسم الطبيب</th>
+                                <th class="py-3.5 px-4">التخصص / اللقب</th>
+                                <th class="py-3.5 px-4">أرقام الهواتف</th>
+                                <th class="py-3.5 px-4">أوقات العمل</th>
+                                <th class="py-3.5 px-4">العنوان</th>
+                                <th class="py-3.5 px-4 text-center">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="doctors-tbody" class="divide-y divide-gray-200 text-sm">
+                        <tbody id="doctors-tbody" class="divide-y divide-gray-100 text-sm">
                             <tr>
                                 <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
                             </tr>
@@ -97,34 +192,34 @@
             </div>
         </section>
 
-        <!-- PHARMACIES SECTION -->
+        <!-- TAB 2: PHARMACIES SECTION -->
         <section id="section-pharmacies" class="space-y-6 hidden">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">قائمة الصيدليات</h2>
-                    <p class="text-sm text-gray-500">إدارة الصيدليات ومناوباتها وأوقات العمل.</p>
+                    <p class="text-sm text-gray-500">إدارة الصيدليات ومناوباتها وأوقات العمل والموقع.</p>
                 </div>
-                <button onclick="openPharmacyModal('add')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                <button onclick="openPharmacyModal('add')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
                     <i class="fa-solid fa-plus"></i>
                     <span>إضافة صيدلية جديدة</span>
                 </button>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-right border-collapse">
                         <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                                <th class="py-3 px-4"># معرف</th>
-                                <th class="py-3 px-4">اسم الصيدلية</th>
-                                <th class="py-3 px-4">الصيدلاني المسؤول</th>
-                                <th class="py-3 px-4">الهاتف</th>
-                                <th class="py-3 px-4">أوقات العمل</th>
-                                <th class="py-3 px-4">العنوان</th>
-                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            <tr class="bg-gray-50/80 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3.5 px-4"># المعرف</th>
+                                <th class="py-3.5 px-4">اسم الصيدلية</th>
+                                <th class="py-3.5 px-4">الصيدلاني المسؤول</th>
+                                <th class="py-3.5 px-4">الهاتف</th>
+                                <th class="py-3.5 px-4">أوقات العمل</th>
+                                <th class="py-3.5 px-4">العنوان</th>
+                                <th class="py-3.5 px-4 text-center">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="pharmacies-tbody" class="divide-y divide-gray-200 text-sm">
+                        <tbody id="pharmacies-tbody" class="divide-y divide-gray-100 text-sm">
                             <tr>
                                 <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
                             </tr>
@@ -134,177 +229,262 @@
             </div>
         </section>
 
-        <!-- LABORATORIES SECTION -->
+        <!-- TAB 3: LABORATORIES SECTION -->
         <section id="section-laboratories" class="space-y-6 hidden">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h2 class="text-lg font-bold text-gray-800">قائمة المختبرات</h2>
-                    <p class="text-sm text-gray-500">إدارة المختبرات الطبية والتحليلات وأوقات العمل.</p>
+                    <h2 class="text-lg font-bold text-gray-800">قائمة المختبرات الطبية</h2>
+                    <p class="text-sm text-gray-500">إدارة المختبرات الطبية والتحليلات المرضية وأوقات العمل.</p>
                 </div>
-                <button onclick="openLabModal('add')" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center space-x-2 space-x-reverse shadow transition">
+                <button onclick="openLabModal('add')" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
                     <i class="fa-solid fa-plus"></i>
                     <span>إضافة مختبر جديد</span>
                 </button>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-right border-collapse">
                         <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                                <th class="py-3 px-4"># معرف</th>
-                                <th class="py-3 px-4">اسم المختبر</th>
-                                <th class="py-3 px-4">الأخصائي المسؤول</th>
-                                <th class="py-3 px-4">الهاتف</th>
-                                <th class="py-3 px-4">أوقات العمل</th>
-                                <th class="py-3 px-4">العنوان</th>
-                                <th class="py-3 px-4 text-center">الإجراءات</th>
+                            <tr class="bg-gray-50/80 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <th class="py-3.5 px-4"># المعرف</th>
+                                <th class="py-3.5 px-4">اسم المختبر</th>
+                                <th class="py-3.5 px-4">الأخصائي المسؤول</th>
+                                <th class="py-3.5 px-4">الهاتف</th>
+                                <th class="py-3.5 px-4">أوقات العمل</th>
+                                <th class="py-3.5 px-4">العنوان</th>
+                                <th class="py-3.5 px-4 text-center">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="laboratories-tbody" class="divide-y divide-gray-200 text-sm">
+                        <tbody id="laboratories-tbody" class="divide-y divide-gray-100 text-sm">
                             <tr>
                                 <td colspan="7" class="py-8 text-center text-gray-400">جاري تحميل البيانات...</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: APP SETTINGS & SECTION TOGGLES (FEATURE FLAGS) -->
+        <section id="section-settings" class="space-y-6 hidden">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <div class="flex items-center space-x-3 space-x-reverse mb-6 pb-4 border-b border-gray-100">
+                    <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl shadow-sm">
+                        <i class="fa-solid fa-sliders text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">إعدادات التطبيق وتفعيل الأقسام (Feature Flags)</h2>
+                        <p class="text-sm text-gray-500">التحكم في إتاحة وتفعيل أقسام الصيدليات والمختبرات في تطبيق الأندرويد لحظياً عبر مسار <code class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg text-xs font-mono font-bold">/app_settings</code></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Pharmacies Feature Flag Card -->
+                    <div class="border border-gray-200 rounded-2xl p-6 bg-gradient-to-br from-white to-emerald-50/30 shadow-sm hover:shadow transition">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
+                                    <i class="fa-solid fa-pills"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">قسم الصيدليات</h3>
+                                    <span class="text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">pharmacies_enabled</span>
+                                </div>
+                            </div>
+                            <!-- Live Toggle Switch -->
+                            <label class="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" id="toggle-pharmacies" class="sr-only peer" onchange="toggleSection('pharmacies', this.checked)">
+                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
+                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
+                            <span id="pharmacies-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2.5 leading-relaxed">
+                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تنبيه تفيد بأن قسم الصيدليات <strong class="text-gray-700">"قريباً"</strong> وسيتم افتتاحه لاحقاً.
+                        </p>
+                    </div>
+
+                    <!-- Laboratories Feature Flag Card -->
+                    <div class="border border-gray-200 rounded-2xl p-6 bg-gradient-to-br from-white to-teal-50/30 shadow-sm hover:shadow transition">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <div class="w-12 h-12 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl shadow-inner">
+                                    <i class="fa-solid fa-flask"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">قسم المختبرات</h3>
+                                    <span class="text-xs font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-semibold">laboratories_enabled</span>
+                                </div>
+                            </div>
+                            <!-- Live Toggle Switch -->
+                            <label class="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" id="toggle-laboratories" class="sr-only peer" onchange="toggleSection('laboratories', this.checked)">
+                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-teal-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
+                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
+                            <span id="laboratories-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2.5 leading-relaxed">
+                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تنبيه تفيد بأن قسم المختبرات <strong class="text-gray-700">"قريباً"</strong> وسيتم افتتاحه لاحقاً.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 text-xs text-indigo-800">
+                    <i class="fa-solid fa-bolt text-indigo-500 text-base flex-shrink-0"></i>
+                    <span>يتم حفظ وتطبيق التغييرات فوراً في قاعدة بيانات Firebase Realtime وتصل لمستخدمي تطبيق الأندرويد دون الحاجة لتحديث التطبيق.</span>
                 </div>
             </div>
         </section>
 
     </main>
 
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-xs text-gray-400">
+            لوحة إدارة أطباء زمار &copy; 2026 - نظام إدارة مباشر مدعوم بـ Firebase
+        </div>
+    </footer>
+
     <!-- DOCTOR MODAL -->
-    <div id="doctor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+    <div id="doctor-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
             <div class="bg-indigo-600 px-6 py-4 text-white flex justify-between items-center">
                 <h3 id="doctor-modal-title" class="font-bold text-lg">إضافة طبيب جديد</h3>
-                <button onclick="closeModal('doctor-modal')" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="closeModal('doctor-modal')" class="text-indigo-200 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="doctor-form" onsubmit="saveDoctor(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <input type="hidden" id="doc-id">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">اسم الطبيب *</label>
-                    <input type="text" id="doc-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: د. أحمد محمد">
+                    <input type="text" id="doc-name" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: د. أحمد محمد">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">التخصص *</label>
-                        <input type="text" id="doc-specialty" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طب الأطفال">
+                        <input type="text" id="doc-specialty" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طب الأطفال">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">اللقب / المسمى</label>
-                        <input type="text" id="doc-title" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طبيب اختصاص">
+                        <input type="text" id="doc-title" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طبيب اختصاص">
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="doc-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="07800000000, 07700000000">
+                    <input type="text" id="doc-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="07800000000, 07700000000">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل / التوقيت</label>
-                    <input type="text" id="doc-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: من 4 عصراً إلى 8 مساءً">
+                    <input type="text" id="doc-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: من 4 عصراً إلى 8 مساءً">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / أقرب نقطة دالة</label>
-                    <input type="text" id="doc-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: شارع الأطباء، قرب عيادة...">
+                    <input type="text" id="doc-address" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: شارع الأطباء، قرب عيادة...">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات</label>
-                    <textarea id="doc-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ملاحظات إضافية..."></textarea>
+                    <textarea id="doc-notes" rows="2" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
-                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
-                    <button type="button" onclick="closeModal('doctor-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow">حفظ الطبيب</button>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal('doctor-modal')" class="px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold transition">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition">حفظ الطبيب</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- PHARMACY MODAL -->
-    <div id="pharmacy-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+    <div id="pharmacy-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
             <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
                 <h3 id="pharmacy-modal-title" class="font-bold text-lg">إضافة صيدلية جديدة</h3>
-                <button onclick="closeModal('pharmacy-modal')" class="text-emerald-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="closeModal('pharmacy-modal')" class="text-emerald-200 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="pharmacy-form" onsubmit="savePharmacy(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <input type="hidden" id="pharm-id">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصيدلية *</label>
-                    <input type="text" id="pharm-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: صيدلية النور">
+                    <input type="text" id="pharm-name" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: صيدلية النور">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">الصيدلاني المسؤول</label>
-                    <input type="text" id="pharm-pharmacist" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الصيدلاني أحمد">
+                    <input type="text" id="pharm-pharmacist" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الصيدلاني أحمد">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="pharm-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="07800000000">
+                    <input type="text" id="pharm-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="07800000000">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
-                    <input type="text" id="pharm-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: 8 صباحاً - 11 مساءً">
+                    <input type="text" id="pharm-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: 8 صباحاً - 11 مساءً">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
-                    <input type="text" id="pharm-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الشارع العام">
+                    <input type="text" id="pharm-address" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الشارع العام">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات / مناوبات</label>
-                    <textarea id="pharm-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ملاحظات المناوبة..."></textarea>
+                    <textarea id="pharm-notes" rows="2" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ملاحظات المناوبة..."></textarea>
                 </div>
-                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
-                    <button type="button" onclick="closeModal('pharmacy-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow">حفظ الصيدلية</button>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal('pharmacy-modal')" class="px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold transition">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md transition">حفظ الصيدلية</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- LABORATORY MODAL -->
-    <div id="laboratory-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+    <div id="laboratory-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
             <div class="bg-teal-600 px-6 py-4 text-white flex justify-between items-center">
                 <h3 id="lab-modal-title" class="font-bold text-lg">إضافة مختبر جديد</h3>
-                <button onclick="closeModal('laboratory-modal')" class="text-teal-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="closeModal('laboratory-modal')" class="text-teal-200 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="lab-form" onsubmit="saveLaboratory(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <input type="hidden" id="lab-id">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">اسم المختبر *</label>
-                    <input type="text" id="lab-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: مختبر الشفاء للتحليلات">
+                    <input type="text" id="lab-name" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: مختبر الشفاء للتحليلات">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">الأخصائي المسؤول</label>
-                    <input type="text" id="lab-specialist" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: د. محمد علي">
+                    <input type="text" id="lab-specialist" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: د. محمد علي">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="lab-phones" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07800000000">
+                    <input type="text" id="lab-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07800000000">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
-                    <input type="text" id="lab-hours" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: 7 صباحاً - 9 مساءً">
+                    <input type="text" id="lab-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: 7 صباحاً - 9 مساءً">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
-                    <input type="text" id="lab-address" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: قرب المستشفى العام">
+                    <input type="text" id="lab-address" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: قرب المستشفى العام">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات / خدمات</label>
-                    <textarea id="lab-notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="الفحوصات المتاحة..."></textarea>
+                    <textarea id="lab-notes" rows="2" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="الفحوصات المتاحة..."></textarea>
                 </div>
-                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t">
-                    <button type="button" onclick="closeModal('laboratory-modal')" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold shadow">حفظ المختبر</button>
+                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal('laboratory-modal')" class="px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold transition">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition">حفظ المختبر</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Firebase Configuration and Logic Script -->
+    <!-- Firebase Logic & Auth Management Script -->
     <script>
-        // Firebase Configuration Constants from google-services.json
+        // 1. Firebase Configuration Constants (from google-services.json)
         const firebaseConfig = {
             apiKey: "AIzaSyDUzr_tRj8ZFnDALQWV27IjrriPDx58leY",
             databaseURL: "https://zummar-doctors-default-rtdb.firebaseio.com",
@@ -313,7 +493,20 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const rtdb = firebase.database();
+
+        // Active database listeners references
+        let doctorsListenerRef = null;
+        let pharmaciesListenerRef = null;
+        let laboratoriesListenerRef = null;
+        let settingsListenerRef = null;
+
+        // Current App Settings
+        let currentSettings = {
+            pharmacies_enabled: true,
+            laboratories_enabled: true
+        };
 
         // Connection status monitoring
         const connectedRef = rtdb.ref(".info/connected");
@@ -322,29 +515,213 @@
             const statusText = document.getElementById("status-text");
             if (snap.val() === true) {
                 statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-                statusText.innerText = "متصل بـ Firebase Realtime Database (مزامنة فورية)";
+                statusText.innerText = "متصل بـ Firebase";
             } else {
                 statusDot.className = "w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse";
-                statusText.innerText = "غير متصل - جاري إعادة الاتصال...";
+                statusText.innerText = "غير متصل - جاري الاتصال...";
             }
         });
 
-        // Tab Switching Logic
+        // 2. Authentication State Observer
+        auth.onAuthStateChanged((user) => {
+            const loginScreen = document.getElementById('login-screen');
+            const mainDashboard = document.getElementById('main-dashboard');
+            const userInfoBar = document.getElementById('user-info-bar');
+            const userEmailDisplay = document.getElementById('user-email-display');
+
+            if (user) {
+                // Logged in
+                loginScreen.classList.add('hidden');
+                mainDashboard.classList.remove('hidden');
+                userInfoBar.classList.remove('hidden');
+                userInfoBar.classList.add('flex');
+                userEmailDisplay.innerText = user.email || 'مشرف';
+
+                // Initialize listeners
+                initRealtimeListeners();
+            } else {
+                // Logged out
+                loginScreen.classList.remove('hidden');
+                mainDashboard.classList.add('hidden');
+                userInfoBar.classList.add('hidden');
+                userInfoBar.classList.remove('flex');
+
+                // Detach listeners
+                detachRealtimeListeners();
+            }
+        });
+
+        // 3. Login Action
+        function handleSignIn(e) {
+            e.preventDefault();
+            const emailInput = document.getElementById('login-email');
+            const passwordInput = document.getElementById('login-password');
+            const submitBtn = document.getElementById('login-submit-btn');
+            const btnLabel = document.getElementById('login-btn-label');
+            const errBox = document.getElementById('login-error');
+            const errText = document.getElementById('login-error-text');
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            errBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            btnLabel.innerText = 'جاري التحقق...';
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    showToast('مرحباً بك! تم تسجيل الدخول بنجاح.', 'success');
+                    submitBtn.disabled = false;
+                    btnLabel.innerText = 'تسجيل الدخول';
+                    document.getElementById('login-form').reset();
+                })
+                .catch((err) => {
+                    submitBtn.disabled = false;
+                    btnLabel.innerText = 'تسجيل الدخول';
+                    errBox.classList.remove('hidden');
+
+                    let message = 'حدث خطأ أثناء تسجيل الدخول: ';
+                    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                        message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+                    } else if (err.code === 'auth/invalid-email') {
+                        message = 'صيغة البريد الإلكتروني غير صالحة.';
+                    } else if (err.code === 'auth/too-many-requests') {
+                        message = 'تم حظر الحساب مؤقتاً لكثرة المحاولات الخاطئة. يرجى المحاولة لاحقاً.';
+                    } else {
+                        message += err.message;
+                    }
+                    errText.innerText = message;
+                });
+        }
+
+        // 4. Sign Out Action
+        function handleSignOut() {
+            if (confirm('هل ترغب بتسجيل الخروج من لوحة التحكم؟')) {
+                auth.signOut()
+                    .then(() => {
+                        showToast('تم تسجيل الخروج بنجاح.', 'info');
+                    })
+                    .catch((err) => {
+                        showToast('خطأ أثناء تسجيل الخروج: ' + err.message, 'error');
+                    });
+            }
+        }
+
+        // 5. Realtime Listeners Management
+        function initRealtimeListeners() {
+            // Doctors listener
+            doctorsListenerRef = rtdb.ref('doctors');
+            doctorsListenerRef.on('value', (snapshot) => {
+                doctorsData = snapshot.val() || {};
+                renderDoctors(snapshot);
+            });
+
+            // Pharmacies listener
+            pharmaciesListenerRef = rtdb.ref('pharmacies');
+            pharmaciesListenerRef.on('value', (snapshot) => {
+                pharmaciesData = snapshot.val() || {};
+                renderPharmacies(snapshot);
+            });
+
+            // Laboratories listener
+            laboratoriesListenerRef = rtdb.ref('laboratories');
+            laboratoriesListenerRef.on('value', (snapshot) => {
+                labsData = snapshot.val() || {};
+                renderLabs(snapshot);
+            });
+
+            // App Settings (/app_settings) listener
+            settingsListenerRef = rtdb.ref('app_settings');
+            settingsListenerRef.on('value', (snapshot) => {
+                const val = snapshot.val() || {};
+                currentSettings = {
+                    pharmacies_enabled: val.pharmacies_enabled !== false,
+                    laboratories_enabled: val.laboratories_enabled !== false
+                };
+                updateSettingsUI();
+            });
+        }
+
+        function detachRealtimeListeners() {
+            if (doctorsListenerRef) doctorsListenerRef.off();
+            if (pharmaciesListenerRef) pharmaciesListenerRef.off();
+            if (laboratoriesListenerRef) laboratoriesListenerRef.off();
+            if (settingsListenerRef) settingsListenerRef.off();
+        }
+
+        // 6. App Settings Feature Flags Logic
+        function updateSettingsUI() {
+            const pharmToggle = document.getElementById('toggle-pharmacies');
+            const pharmBadge = document.getElementById('pharmacies-status-badge');
+            const labToggle = document.getElementById('toggle-laboratories');
+            const labBadge = document.getElementById('laboratories-status-badge');
+
+            if (pharmToggle) {
+                pharmToggle.checked = currentSettings.pharmacies_enabled;
+            }
+            if (pharmBadge) {
+                if (currentSettings.pharmacies_enabled) {
+                    pharmBadge.innerText = 'مفعّل ومرئي للجميع';
+                    pharmBadge.className = 'px-3 py-1 rounded-full font-bold bg-emerald-100 text-emerald-700';
+                } else {
+                    pharmBadge.innerText = 'معطّل (يظهر قريباً)';
+                    pharmBadge.className = 'px-3 py-1 rounded-full font-bold bg-amber-100 text-amber-800';
+                }
+            }
+
+            if (labToggle) {
+                labToggle.checked = currentSettings.laboratories_enabled;
+            }
+            if (labBadge) {
+                if (currentSettings.laboratories_enabled) {
+                    labBadge.innerText = 'مفعّل ومرئي للجميع';
+                    labBadge.className = 'px-3 py-1 rounded-full font-bold bg-teal-100 text-teal-700';
+                } else {
+                    labBadge.innerText = 'معطّل (يظهر قريباً)';
+                    labBadge.className = 'px-3 py-1 rounded-full font-bold bg-amber-100 text-amber-800';
+                }
+            }
+        }
+
+        function toggleSection(section, isEnabled) {
+            const updates = {};
+            if (section === 'pharmacies') {
+                updates.pharmacies_enabled = isEnabled;
+            } else if (section === 'laboratories') {
+                updates.laboratories_enabled = isEnabled;
+            }
+
+            rtdb.ref('app_settings').update(updates)
+                .then(() => {
+                    const label = section === 'pharmacies' ? 'الصيدليات' : 'المختبرات';
+                    const stateText = isEnabled ? 'تفعيل' : 'تعطيل';
+                    showToast(`تم ${stateText} قسم ${label} بنجاح!`, 'success');
+                })
+                .catch((err) => {
+                    showToast('خطأ في حفظ الإعدادات: ' + err.message, 'error');
+                    updateSettingsUI(); // Revert UI
+                });
+        }
+
+        // 7. Tab Navigation
         function switchTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.className = "tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2 space-x-reverse transition";
+                btn.className = "tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg";
             });
             document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
 
             if (tabName === 'doctors') {
-                document.getElementById('tab-doctors').className = "tab-btn px-6 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('tab-doctors').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-doctors').classList.remove('hidden');
             } else if (tabName === 'pharmacies') {
-                document.getElementById('tab-pharmacies').className = "tab-btn px-6 py-3 font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('tab-pharmacies').className = "tab-btn px-5 py-3 font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-pharmacies').classList.remove('hidden');
             } else if (tabName === 'laboratories') {
-                document.getElementById('tab-laboratories').className = "tab-btn px-6 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center space-x-2 space-x-reverse transition";
+                document.getElementById('tab-laboratories').className = "tab-btn px-5 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-laboratories').classList.remove('hidden');
+            } else if (tabName === 'settings') {
+                document.getElementById('tab-settings').className = "tab-btn px-5 py-3 font-bold border-b-2 border-purple-600 text-purple-600 flex items-center gap-2 transition rounded-t-lg";
+                document.getElementById('section-settings').classList.remove('hidden');
             }
         }
 
@@ -352,7 +729,10 @@
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             toast.innerText = message;
-            toast.className = `mb-4 p-4 rounded-lg text-white font-medium shadow-md transition transform duration-300 ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`;
+            let bgClass = 'bg-emerald-600';
+            if (type === 'error') bgClass = 'bg-red-600';
+            if (type === 'info') bgClass = 'bg-indigo-600';
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-2xl text-white font-medium shadow-2xl transition-all duration-300 max-w-md w-full text-center ${bgClass}`;
             toast.classList.remove('hidden');
             setTimeout(() => {
                 toast.classList.add('hidden');
@@ -365,24 +745,28 @@
         }
 
         // --- DOCTORS CRUD ---
-        const doctorsRef = rtdb.ref('doctors');
         let doctorsData = {};
 
-        doctorsRef.on('value', (snapshot) => {
-            doctorsData = snapshot.val() || {};
-            renderDoctors();
-        });
-
-        function renderDoctors() {
+        function renderDoctors(snapshot) {
             const tbody = document.getElementById('doctors-tbody');
+            tbody.innerHTML = '';
+            const renderedKeys = new Set();
             const list = [];
-            for (let key in doctorsData) {
-                if (doctorsData.hasOwnProperty(key)) {
-                    list.push({ firebaseKey: key, ...doctorsData[key] });
+            
+            snapshot.forEach((child) => {
+                if (renderedKeys.has(child.key)) return;
+                renderedKeys.add(child.key);
+                list.push({ firebaseKey: child.key, ...child.val() });
+            });
+            
+            list.sort((a, b) => {
+                const idA = a.firebaseKey;
+                const idB = b.firebaseKey;
+                if (!isNaN(idA) && !isNaN(idB)) {
+                    return Number(idA) - Number(idB);
                 }
-            }
-            // Sort by id or order
-            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+                return String(idA).localeCompare(String(idB));
+            });
 
             if (list.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد بيانات أطباء مسجلة حالياً.</td></tr>`;
@@ -395,7 +779,7 @@
                 const address = doc.addressLandmark || '-';
                 return `
                     <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
-                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${doc.id || doc.firebaseKey}</td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${doc.firebaseKey}</td>
                         <td class="py-3 px-4 font-bold text-gray-900">${doc.name || ''}</td>
                         <td class="py-3 px-4">
                             <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold">${doc.specialty || ''}</span>
@@ -405,18 +789,27 @@
                         <td class="py-3 px-4 text-xs text-gray-600">${hours}</td>
                         <td class="py-3 px-4 text-xs text-gray-600">${address}</td>
                         <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
-                            <button onclick="openDoctorModal('edit', '${doc.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteDoctor('${doc.firebaseKey}', '${doc.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                            <button data-key="${doc.firebaseKey}" onclick="handleEditDoctor(this)" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-xl transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button data-key="${doc.firebaseKey}" onclick="handleDeleteDoctor(this, '${doc.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-xl transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
+        function handleEditDoctor(btn) {
+            openDoctorModal('edit', btn.dataset.key);
+        }
+
+        function handleDeleteDoctor(btn, name) {
+            deleteDoctor(btn.dataset.key, name);
+        }
+
         function openDoctorModal(mode, key = null) {
             document.getElementById('doctor-modal').classList.remove('hidden');
             const form = document.getElementById('doctor-form');
             form.reset();
+            delete form.dataset.firebaseKey;
             if (mode === 'add') {
                 document.getElementById('doctor-modal-title').innerText = 'إضافة طبيب جديد';
                 document.getElementById('doc-id').value = '';
@@ -424,7 +817,7 @@
                 document.getElementById('doctor-modal-title').innerText = 'تعديل بيانات الطبيب';
                 const doc = doctorsData[key];
                 if (doc) {
-                    document.getElementById('doc-id').value = doc.id || key;
+                    document.getElementById('doc-id').value = key;
                     document.getElementById('doc-name').value = doc.name || '';
                     document.getElementById('doc-specialty').value = doc.specialty || '';
                     document.getElementById('doc-title').value = doc.title || '';
@@ -432,7 +825,6 @@
                     document.getElementById('doc-hours').value = doc.workingHoursText || '';
                     document.getElementById('doc-address').value = doc.addressLandmark || '';
                     document.getElementById('doc-notes').value = doc.notes || '';
-                    // store firebaseKey reference
                     form.dataset.firebaseKey = key;
                 }
             }
@@ -441,15 +833,12 @@
         function saveDoctor(e) {
             e.preventDefault();
             const form = document.getElementById('doctor-form');
-            const customId = document.getElementById('doc-id').value;
-            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
-            const numericId = customId ? parseInt(customId) : Date.now();
+            const existingKey = form.dataset.firebaseKey;
 
             const phonesRaw = document.getElementById('doc-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
             const doctorObj = {
-                id: numericId,
                 name: document.getElementById('doc-name').value,
                 specialty: document.getElementById('doc-specialty').value,
                 title: document.getElementById('doc-title').value || 'طبيب اختصاص',
@@ -466,18 +855,36 @@
                 orderIndex: 0
             };
 
-            rtdb.ref('doctors/' + numericId).set(doctorObj)
-                .then(() => {
-                    showToast('تم حفظ بيانات الطبيب بنجاح وتحديث أجهزة الموبايل فوراً!');
-                    closeModal('doctor-modal');
-                    delete form.dataset.firebaseKey;
-                })
-                .catch(err => {
-                    showToast('حدث خطأ أثناء الحفظ: ' + err.message, 'error');
-                });
+            if (existingKey) {
+                doctorObj.id = existingKey;
+                rtdb.ref('doctors/' + existingKey).set(doctorObj)
+                    .then(() => {
+                        showToast('تم تحديث بيانات الطبيب بنجاح!');
+                        closeModal('doctor-modal');
+                        delete form.dataset.firebaseKey;
+                    })
+                    .catch(err => {
+                        showToast('حدث خطأ أثناء التحديث: ' + err.message, 'error');
+                    });
+            } else {
+                const newRef = rtdb.ref('doctors').push();
+                doctorObj.id = newRef.key;
+                newRef.set(doctorObj)
+                    .then(() => {
+                        showToast('تم إضافة الطبيب بنجاح!');
+                        closeModal('doctor-modal');
+                    })
+                    .catch(err => {
+                        showToast('حدث خطأ أثناء الإضافة: ' + err.message, 'error');
+                    });
+            }
         }
 
         function deleteDoctor(key, name) {
+            if (!key || key === 'undefined') {
+                showToast('خطأ: معرف السجل غير صالح.', 'error');
+                return;
+            }
             if (confirm(`هل أنت متأكد من حذف الطبيب "${name}"؟`)) {
                 rtdb.ref('doctors/' + key).remove()
                     .then(() => {
@@ -489,25 +896,29 @@
             }
         }
 
-
         // --- PHARMACIES CRUD ---
-        const pharmaciesRef = rtdb.ref('pharmacies');
         let pharmaciesData = {};
 
-        pharmaciesRef.on('value', (snapshot) => {
-            pharmaciesData = snapshot.val() || {};
-            renderPharmacies();
-        });
-
-        function renderPharmacies() {
+        function renderPharmacies(snapshot) {
             const tbody = document.getElementById('pharmacies-tbody');
+            tbody.innerHTML = '';
+            const renderedKeys = new Set();
             const list = [];
-            for (let key in pharmaciesData) {
-                if (pharmaciesData.hasOwnProperty(key)) {
-                    list.push({ firebaseKey: key, ...pharmaciesData[key] });
+            
+            snapshot.forEach((child) => {
+                if (renderedKeys.has(child.key)) return;
+                renderedKeys.add(child.key);
+                list.push({ firebaseKey: child.key, ...child.val() });
+            });
+            
+            list.sort((a, b) => {
+                const idA = a.firebaseKey;
+                const idB = b.firebaseKey;
+                if (!isNaN(idA) && !isNaN(idB)) {
+                    return Number(idA) - Number(idB);
                 }
-            }
-            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+                return String(idA).localeCompare(String(idB));
+            });
 
             if (list.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد صيدليات مسجلة حالياً.</td></tr>`;
@@ -518,25 +929,34 @@
                 const phones = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '-');
                 return `
                     <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
-                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${p.id || p.firebaseKey}</td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${p.firebaseKey}</td>
                         <td class="py-3 px-4 font-bold text-gray-900">${p.name || ''}</td>
                         <td class="py-3 px-4 text-xs text-gray-700">${p.pharmacist || '-'}</td>
                         <td class="py-3 px-4 font-mono text-xs text-gray-600" dir="ltr">${phones}</td>
                         <td class="py-3 px-4 text-xs text-gray-600">${p.workingHours || '-'}</td>
                         <td class="py-3 px-4 text-xs text-gray-600">${p.addressLandmark || '-'}</td>
                         <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
-                            <button onclick="openPharmacyModal('edit', '${p.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deletePharmacy('${p.firebaseKey}', '${p.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                            <button data-key="${p.firebaseKey}" onclick="handleEditPharmacy(this)" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-xl transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button data-key="${p.firebaseKey}" onclick="handleDeletePharmacy(this, '${p.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-xl transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
+        function handleEditPharmacy(btn) {
+            openPharmacyModal('edit', btn.dataset.key);
+        }
+
+        function handleDeletePharmacy(btn, name) {
+            deletePharmacy(btn.dataset.key, name);
+        }
+
         function openPharmacyModal(mode, key = null) {
             document.getElementById('pharmacy-modal').classList.remove('hidden');
             const form = document.getElementById('pharmacy-form');
             form.reset();
+            delete form.dataset.firebaseKey;
             if (mode === 'add') {
                 document.getElementById('pharmacy-modal-title').innerText = 'إضافة صيدلية جديدة';
                 document.getElementById('pharm-id').value = '';
@@ -544,7 +964,7 @@
                 document.getElementById('pharmacy-modal-title').innerText = 'تعديل بيانات الصيدلية';
                 const p = pharmaciesData[key];
                 if (p) {
-                    document.getElementById('pharm-id').value = p.id || key;
+                    document.getElementById('pharm-id').value = key;
                     document.getElementById('pharm-name').value = p.name || '';
                     document.getElementById('pharm-pharmacist').value = p.pharmacist || '';
                     document.getElementById('pharm-phones').value = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '');
@@ -559,15 +979,12 @@
         function savePharmacy(e) {
             e.preventDefault();
             const form = document.getElementById('pharmacy-form');
-            const customId = document.getElementById('pharm-id').value;
-            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
-            const numericId = customId ? parseInt(customId) : Date.now();
+            const existingKey = form.dataset.firebaseKey;
 
             const phonesRaw = document.getElementById('pharm-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
             const pharmObj = {
-                id: numericId,
                 name: document.getElementById('pharm-name').value,
                 pharmacist: document.getElementById('pharm-pharmacist').value,
                 phoneNumbers: phoneList,
@@ -578,18 +995,36 @@
                 onCallDays: ""
             };
 
-            rtdb.ref('pharmacies/' + numericId).set(pharmObj)
-                .then(() => {
-                    showToast('تم حفظ الصيدلية بنجاح ومزامنتها فوراً!');
-                    closeModal('pharmacy-modal');
-                    delete form.dataset.firebaseKey;
-                })
-                .catch(err => {
-                    showToast('خطأ: ' + err.message, 'error');
-                });
+            if (existingKey) {
+                pharmObj.id = existingKey;
+                rtdb.ref('pharmacies/' + existingKey).set(pharmObj)
+                    .then(() => {
+                        showToast('تم تحديث بيانات الصيدلية بنجاح!');
+                        closeModal('pharmacy-modal');
+                        delete form.dataset.firebaseKey;
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            } else {
+                const newRef = rtdb.ref('pharmacies').push();
+                pharmObj.id = newRef.key;
+                newRef.set(pharmObj)
+                    .then(() => {
+                        showToast('تم إضافة الصيدلية بنجاح!');
+                        closeModal('pharmacy-modal');
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            }
         }
 
         function deletePharmacy(key, name) {
+            if (!key || key === 'undefined') {
+                showToast('خطأ: معرف السجل غير صالح.', 'error');
+                return;
+            }
             if (confirm(`هل أنت متأكد من حذف صيدلية "${name}"؟`)) {
                 rtdb.ref('pharmacies/' + key).remove()
                     .then(() => {
@@ -601,25 +1036,29 @@
             }
         }
 
-
         // --- LABORATORIES CRUD ---
-        const labsRef = rtdb.ref('laboratories');
         let labsData = {};
 
-        labsRef.on('value', (snapshot) => {
-            labsData = snapshot.val() || {};
-            renderLabs();
-        });
-
-        function renderLabs() {
+        function renderLabs(snapshot) {
             const tbody = document.getElementById('laboratories-tbody');
+            tbody.innerHTML = '';
+            const renderedKeys = new Set();
             const list = [];
-            for (let key in labsData) {
-                if (labsData.hasOwnProperty(key)) {
-                    list.push({ firebaseKey: key, ...labsData[key] });
+            
+            snapshot.forEach((child) => {
+                if (renderedKeys.has(child.key)) return;
+                renderedKeys.add(child.key);
+                list.push({ firebaseKey: child.key, ...child.val() });
+            });
+            
+            list.sort((a, b) => {
+                const idA = a.firebaseKey;
+                const idB = b.firebaseKey;
+                if (!isNaN(idA) && !isNaN(idB)) {
+                    return Number(idA) - Number(idB);
                 }
-            }
-            list.sort((a, b) => (a.id || 0) - (b.id || 0));
+                return String(idA).localeCompare(String(idB));
+            });
 
             if (list.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">لا توجد مختبرات مسجلة حالياً.</td></tr>`;
@@ -630,25 +1069,34 @@
                 const phones = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '-');
                 return `
                     <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
-                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${lab.id || lab.firebaseKey}</td>
+                        <td class="py-3 px-4 font-mono text-xs text-gray-500">${lab.firebaseKey}</td>
                         <td class="py-3 px-4 font-bold text-gray-900">${lab.name || ''}</td>
                         <td class="py-3 px-4 text-xs text-gray-700">${lab.specialist || '-'}</td>
                         <td class="py-3 px-4 font-mono text-xs text-gray-600" dir="ltr">${phones}</td>
                         <td class="py-3 px-4 text-xs text-gray-600">${lab.workingHours || '-'}</td>
                         <td class="py-3 px-4 text-xs text-gray-600">${lab.addressLandmark || '-'}</td>
                         <td class="py-3 px-4 text-center space-x-1 space-x-reverse">
-                            <button onclick="openLabModal('edit', '${lab.firebaseKey}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteLab('${lab.firebaseKey}', '${lab.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                            <button data-key="${lab.firebaseKey}" onclick="handleEditLab(this)" class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-xl transition" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            <button data-key="${lab.firebaseKey}" onclick="handleDeleteLab(this, '${lab.name || ''}')" class="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-xl transition" title="حذف"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
+        function handleEditLab(btn) {
+            openLabModal('edit', btn.dataset.key);
+        }
+
+        function handleDeleteLab(btn, name) {
+            deleteLab(btn.dataset.key, name);
+        }
+
         function openLabModal(mode, key = null) {
             document.getElementById('laboratory-modal').classList.remove('hidden');
             const form = document.getElementById('lab-form');
             form.reset();
+            delete form.dataset.firebaseKey;
             if (mode === 'add') {
                 document.getElementById('lab-modal-title').innerText = 'إضافة مختبر جديد';
                 document.getElementById('lab-id').value = '';
@@ -656,7 +1104,7 @@
                 document.getElementById('lab-modal-title').innerText = 'تعديل بيانات المختبر';
                 const lab = labsData[key];
                 if (lab) {
-                    document.getElementById('lab-id').value = lab.id || key;
+                    document.getElementById('lab-id').value = key;
                     document.getElementById('lab-name').value = lab.name || '';
                     document.getElementById('lab-specialist').value = lab.specialist || '';
                     document.getElementById('lab-phones').value = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '');
@@ -671,15 +1119,12 @@
         function saveLaboratory(e) {
             e.preventDefault();
             const form = document.getElementById('lab-form');
-            const customId = document.getElementById('lab-id').value;
-            const key = form.dataset.firebaseKey || (customId ? customId : Date.now().toString());
-            const numericId = customId ? parseInt(customId) : Date.now();
+            const existingKey = form.dataset.firebaseKey;
 
             const phonesRaw = document.getElementById('lab-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
             const labObj = {
-                id: numericId,
                 name: document.getElementById('lab-name').value,
                 specialist: document.getElementById('lab-specialist').value,
                 phoneNumbers: phoneList,
@@ -690,18 +1135,36 @@
                 services: []
             };
 
-            rtdb.ref('laboratories/' + numericId).set(labObj)
-                .then(() => {
-                    showToast('تم حفظ المختبر بنجاح ومزامنتها فوراً!');
-                    closeModal('laboratory-modal');
-                    delete form.dataset.firebaseKey;
-                })
-                .catch(err => {
-                    showToast('خطأ: ' + err.message, 'error');
-                });
+            if (existingKey) {
+                labObj.id = existingKey;
+                rtdb.ref('laboratories/' + existingKey).set(labObj)
+                    .then(() => {
+                        showToast('تم تحديث بيانات المختبر بنجاح!');
+                        closeModal('laboratory-modal');
+                        delete form.dataset.firebaseKey;
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            } else {
+                const newRef = rtdb.ref('laboratories').push();
+                labObj.id = newRef.key;
+                newRef.set(labObj)
+                    .then(() => {
+                        showToast('تم إضافة المختبر بنجاح!');
+                        closeModal('laboratory-modal');
+                    })
+                    .catch(err => {
+                        showToast('خطأ: ' + err.message, 'error');
+                    });
+            }
         }
 
         function deleteLab(key, name) {
+            if (!key || key === 'undefined') {
+                showToast('خطأ: معرف السجل غير صالح.', 'error');
+                return;
+            }
             if (confirm(`هل أنت متأكد من حذف مختبر "${name}"؟`)) {
                 rtdb.ref('laboratories/' + key).remove()
                     .then(() => {

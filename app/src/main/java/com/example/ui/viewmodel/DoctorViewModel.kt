@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
-import com.example.data.local.DefaultData
 import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
@@ -26,8 +25,7 @@ import java.util.Calendar
 enum class AppTab {
     DOCTORS,
     PHARMACIES,
-    LABORATORIES,
-    ADMIN
+    LABORATORIES
 }
 
 class DoctorViewModel(application: Application) : AndroidViewModel(application) {
@@ -82,44 +80,32 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentTab = MutableStateFlow(AppTab.DOCTORS)
     val currentTab: StateFlow<AppTab> = _currentTab
 
-    // Admin authentication state
-    private val _isAdminAuthenticated = MutableStateFlow(false)
-    val isAdminAuthenticated: StateFlow<Boolean> = _isAdminAuthenticated
-
     // UI readiness state for startup safety
     private val _isReady = MutableStateFlow(true)
     val isReady: StateFlow<Boolean> = _isReady
 
     // Dynamic lists for pharmacies and labs backed by Firebase Realtime Database
-    val pharmacies: StateFlow<List<Pharmacy>> = (repository?.getPharmaciesFlow() ?: flowOf(DefaultData.initialPharmacies))
+    val pharmacies: StateFlow<List<Pharmacy>> = (repository?.getPharmaciesFlow() ?: flowOf(emptyList()))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = DefaultData.initialPharmacies
+            initialValue = emptyList()
         )
 
-    val laboratories: StateFlow<List<Laboratory>> = (repository?.getLaboratoriesFlow() ?: flowOf(DefaultData.initialLaboratories))
+    val laboratories: StateFlow<List<Laboratory>> = (repository?.getLaboratoriesFlow() ?: flowOf(emptyList()))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = DefaultData.initialLaboratories
+            initialValue = emptyList()
         )
 
     private val _sponsorBanner = MutableStateFlow(SponsorBanner.defaultBanner)
     val sponsorBanner: StateFlow<SponsorBanner> = _sponsorBanner
 
-    private val _isPharmaciesEnabled = MutableStateFlow(false)
-    val isPharmaciesEnabled: StateFlow<Boolean> = _isPharmaciesEnabled
-
-    private val _isLaboratoriesEnabled = MutableStateFlow(false)
-    val isLaboratoriesEnabled: StateFlow<Boolean> = _isLaboratoriesEnabled
-
     init {
         try {
             repository?.let { repo ->
                 _sponsorBanner.value = repo.getSponsorBanner()
-                _isPharmaciesEnabled.value = repo.isPharmaciesEnabled()
-                _isLaboratoriesEnabled.value = repo.isLaboratoriesEnabled()
                 repo.reconnectRealtime()
             }
         } catch (e: Exception) {
@@ -127,11 +113,11 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    val doctors: StateFlow<List<Doctor>> = (repository?.getDoctorsFlow() ?: flowOf(DefaultData.initialDoctors))
+    val doctors: StateFlow<List<Doctor>> = (repository?.getDoctorsFlow() ?: flowOf(emptyList()))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = DefaultData.initialDoctors
+            initialValue = emptyList()
         )
 
     val filteredDoctors: StateFlow<List<Doctor>> = combine(
@@ -141,7 +127,7 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
         _selectedSpecialty
     ) { docList, query, day, specialty ->
         try {
-            val list = if (docList.isEmpty()) DefaultData.initialDoctors else docList
+            val list = docList
             val trimmedQuery = query.trim()
             val isSearching = trimmedQuery.isNotEmpty()
             val calendar = Calendar.getInstance()
@@ -180,12 +166,12 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in filter/sort combine: ${e.message}")
-            DefaultData.initialDoctors
+            emptyList()
         }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DefaultData.initialDoctors
+        initialValue = emptyList()
     )
 
     fun onSearchQueryChanged(newQuery: String) {
@@ -201,177 +187,6 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setTab(tab: AppTab) {
-        if (tab == AppTab.PHARMACIES && !_isPharmaciesEnabled.value) {
-            return
-        }
-        if (tab == AppTab.LABORATORIES && !_isLaboratoriesEnabled.value) {
-            return
-        }
         _currentTab.value = tab
-    }
-
-    fun verifyPin(pin: String): Boolean {
-        val valid = repository?.verifyPasscode(pin) ?: (pin.trim() == "200120012001")
-        if (valid) {
-            _isAdminAuthenticated.value = true
-        }
-        return valid
-    }
-
-    fun verifyPasscode(passcode: String): Boolean = verifyPin(passcode)
-
-    fun logoutAdmin() {
-        _isAdminAuthenticated.value = false
-        if (_currentTab.value == AppTab.ADMIN) {
-            _currentTab.value = AppTab.DOCTORS
-        }
-    }
-
-    fun updateAdminPasscode(newPasscode: String) {
-        repository?.setAdminPasscode(newPasscode)
-    }
-
-    fun updateAdminPin(newPin: String) {
-        updateAdminPasscode(newPin)
-    }
-
-    fun addDoctor(doctor: Doctor) {
-        viewModelScope.launch {
-            try {
-                repository?.insertDoctor(doctor)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error adding doctor: ${e.message}")
-            }
-        }
-    }
-
-    fun updateDoctor(doctor: Doctor) {
-        viewModelScope.launch {
-            try {
-                repository?.updateDoctor(doctor)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating doctor: ${e.message}")
-            }
-        }
-    }
-
-    fun deleteDoctor(doctor: Doctor) {
-        viewModelScope.launch {
-            try {
-                repository?.deleteDoctor(doctor)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error deleting doctor: ${e.message}")
-            }
-        }
-    }
-
-    fun resetToDefaults() {
-        viewModelScope.launch {
-            try {
-                repository?.resetToDefaultData()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error resetting to defaults: ${e.message}")
-            }
-        }
-    }
-
-    suspend fun exportJson(): String {
-        return repository?.exportDatabaseToJson() ?: "{}"
-    }
-
-    suspend fun importJson(json: String): Result<Int> {
-        val repo = repository ?: return Result.failure(Exception("Repository not initialized"))
-        val res = repo.importDatabaseFromJson(json)
-        if (res.isSuccess) {
-            _sponsorBanner.value = repo.getSponsorBanner()
-            _isPharmaciesEnabled.value = repo.isPharmaciesEnabled()
-            _isLaboratoriesEnabled.value = repo.isLaboratoriesEnabled()
-        }
-        return res
-    }
-
-    fun updateSponsorBanner(banner: SponsorBanner) {
-        repository?.saveSponsorBanner(banner)
-        _sponsorBanner.value = banner
-    }
-
-    fun setPharmaciesEnabled(enabled: Boolean) {
-        repository?.setPharmaciesEnabled(enabled)
-        _isPharmaciesEnabled.value = enabled
-        if (!enabled && _currentTab.value == AppTab.PHARMACIES) {
-            _currentTab.value = AppTab.DOCTORS
-        }
-    }
-
-    fun setLaboratoriesEnabled(enabled: Boolean) {
-        repository?.setLaboratoriesEnabled(enabled)
-        _isLaboratoriesEnabled.value = enabled
-        if (!enabled && _currentTab.value == AppTab.LABORATORIES) {
-            _currentTab.value = AppTab.DOCTORS
-        }
-    }
-
-    fun refreshDoctors() {
-        viewModelScope.launch {
-            try {
-                repository?.reconnectRealtime()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error refreshing doctors: ${e.message}")
-            }
-        }
-    }
-
-    fun refreshPharmacies() {
-        viewModelScope.launch {
-            try {
-                repository?.reconnectRealtime()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error refreshing pharmacies: ${e.message}")
-            }
-        }
-    }
-
-    fun refreshLaboratories() {
-        viewModelScope.launch {
-            try {
-                repository?.reconnectRealtime()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error refreshing laboratories: ${e.message}")
-            }
-        }
-    }
-
-    fun refreshAll() {
-        viewModelScope.launch {
-            try {
-                repository?.reconnectRealtime()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in refreshAll: ${e.message}")
-            }
-        }
-    }
-
-    fun addPharmacy(pharmacy: Pharmacy) {
-        repository?.addPharmacy(pharmacy)
-    }
-
-    fun updatePharmacy(pharmacy: Pharmacy) {
-        repository?.updatePharmacy(pharmacy)
-    }
-
-    fun deletePharmacy(pharmacy: Pharmacy) {
-        repository?.deletePharmacy(pharmacy)
-    }
-
-    fun addLaboratory(laboratory: Laboratory) {
-        repository?.addLaboratory(laboratory)
-    }
-
-    fun updateLaboratory(laboratory: Laboratory) {
-        repository?.updateLaboratory(laboratory)
-    }
-
-    fun deleteLaboratory(laboratory: Laboratory) {
-        repository?.deleteLaboratory(laboratory)
     }
 }

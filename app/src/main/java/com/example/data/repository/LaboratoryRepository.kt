@@ -2,7 +2,6 @@ package com.example.data.repository
 
 import android.content.Context
 import android.util.Log
-import com.example.data.local.DefaultData
 import com.example.data.model.Laboratory
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -56,7 +55,7 @@ class LaboratoryRepository(private val context: Context) {
     }
 
     // Authoritative live state flow kept in sync with Firebase Realtime Database
-    private val _liveLaboratories = MutableStateFlow<List<Laboratory>>(DefaultData.initialLaboratories)
+    private val _liveLaboratories = MutableStateFlow<List<Laboratory>>(emptyList())
     val laboratoriesFlow: StateFlow<List<Laboratory>> get() = _liveLaboratories
 
     init {
@@ -73,11 +72,8 @@ class LaboratoryRepository(private val context: Context) {
                         val parsed = SafeFirebaseParser.parseLaboratories(snapshot)
                         if (parsed.isNotEmpty()) {
                             _liveLaboratories.value = parsed.sortedBy { it.id }
-                        } else if (snapshot.exists()) {
-                            _liveLaboratories.value = emptyList()
                         } else {
-                            seedDefaultLaboratories()
-                            _liveLaboratories.value = DefaultData.initialLaboratories
+                            _liveLaboratories.value = emptyList()
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error in background listener: ${e.message}")
@@ -117,13 +113,9 @@ class LaboratoryRepository(private val context: Context) {
                             val sorted = parsed.sortedBy { it.id }
                             _liveLaboratories.value = sorted
                             trySend(sorted)
-                        } else if (snapshot.exists()) {
+                        } else {
                             _liveLaboratories.value = emptyList()
                             trySend(emptyList())
-                        } else {
-                            seedDefaultLaboratories()
-                            _liveLaboratories.value = DefaultData.initialLaboratories
-                            trySend(DefaultData.initialLaboratories)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing laboratories in callbackFlow: ${e.message}")
@@ -147,113 +139,6 @@ class LaboratoryRepository(private val context: Context) {
             if (ref != null && listener != null) {
                 ref.removeEventListener(listener)
             }
-        }
-    }
-
-    private fun seedDefaultLaboratories() {
-        try {
-            val ref = laboratoriesRef ?: return
-            val map = mutableMapOf<String, Laboratory>()
-            DefaultData.initialLaboratories.forEach { lab ->
-                map[lab.id.toString()] = lab
-            }
-            ref.setValue(map)
-        } catch (e: Exception) {
-            Log.w(TAG, "Cannot seed initial laboratories: ${e.message}")
-        }
-    }
-
-    /**
-     * Add a laboratory with key preservation directly at /laboratories/$id
-     */
-    fun addLaboratory(laboratory: Laboratory): Long {
-        val currentList = _liveLaboratories.value
-        val assignedId = if (laboratory.id > 0) {
-            laboratory.id
-        } else {
-            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
-            maxId + 1L
-        }
-        val targetLab = laboratory.copy(id = assignedId)
-
-        val updated = currentList.filterNot { it.id == assignedId } + targetLab
-        _liveLaboratories.value = updated.sortedBy { it.id }
-
-        try {
-            laboratoriesRef?.child(assignedId.toString())?.setValue(targetLab)
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to write laboratory $assignedId to Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing laboratory $assignedId: ${e.message}")
-        }
-        return assignedId
-    }
-
-    /**
-     * Update an existing laboratory preserving its ID directly at /laboratories/$id
-     */
-    fun updateLaboratory(laboratory: Laboratory) {
-        val targetId = laboratory.id
-        val currentList = _liveLaboratories.value
-        val updated = currentList.map { if (it.id == targetId) laboratory else it }
-        _liveLaboratories.value = updated
-
-        try {
-            laboratoriesRef?.child(targetId.toString())?.setValue(laboratory)
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to update laboratory $targetId in Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating laboratory $targetId: ${e.message}")
-        }
-    }
-
-    /**
-     * Delete a laboratory by ID directly removing the child at /laboratories/$id
-     */
-    fun deleteLaboratory(laboratoryId: Long) {
-        val currentList = _liveLaboratories.value
-        _liveLaboratories.value = currentList.filterNot { it.id == laboratoryId }
-
-        try {
-            laboratoriesRef?.child(laboratoryId.toString())?.removeValue()
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to delete laboratory $laboratoryId in Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing laboratory $laboratoryId: ${e.message}")
-        }
-    }
-
-    fun deleteLaboratory(laboratory: Laboratory) {
-        deleteLaboratory(laboratory.id)
-    }
-
-    fun saveLaboratories(list: List<Laboratory>) {
-        _liveLaboratories.value = list
-        try {
-            val map = mutableMapOf<String, Laboratory>()
-            list.forEach { lab ->
-                map[lab.id.toString()] = lab
-            }
-            laboratoriesRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error batch saving laboratories: ${e.message}")
-        }
-    }
-
-    fun resetToDefaults() {
-        val initial = DefaultData.initialLaboratories
-        _liveLaboratories.value = initial
-        try {
-            val map = mutableMapOf<String, Laboratory>()
-            initial.forEach { lab ->
-                map[lab.id.toString()] = lab
-            }
-            laboratoriesRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resetting laboratories in Firebase: ${e.message}")
         }
     }
 

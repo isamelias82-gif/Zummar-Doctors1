@@ -28,15 +28,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "zummar_doctors_database"
                 )
                     .fallbackToDestructiveMigration()
-                    .addCallback(object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            // Populate database on first creation
-                            CoroutineScope(Dispatchers.IO).launch {
-                                getInstance(context).doctorDao().insertAllDoctors(DefaultData.initialDoctors)
-                            }
-                        }
-                    })
                     .build()
                 INSTANCE = instance
                 instance

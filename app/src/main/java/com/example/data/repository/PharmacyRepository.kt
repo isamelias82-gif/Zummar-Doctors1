@@ -2,7 +2,6 @@ package com.example.data.repository
 
 import android.content.Context
 import android.util.Log
-import com.example.data.local.DefaultData
 import com.example.data.model.Pharmacy
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -56,7 +55,7 @@ class PharmacyRepository(private val context: Context) {
     }
 
     // Authoritative live state flow kept in sync with Firebase Realtime Database
-    private val _livePharmacies = MutableStateFlow<List<Pharmacy>>(DefaultData.initialPharmacies)
+    private val _livePharmacies = MutableStateFlow<List<Pharmacy>>(emptyList())
     val pharmaciesFlow: StateFlow<List<Pharmacy>> get() = _livePharmacies
 
     init {
@@ -73,11 +72,8 @@ class PharmacyRepository(private val context: Context) {
                         val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
                         if (parsed.isNotEmpty()) {
                             _livePharmacies.value = parsed.sortedBy { it.id }
-                        } else if (snapshot.exists()) {
-                            _livePharmacies.value = emptyList()
                         } else {
-                            seedDefaultPharmacies()
-                            _livePharmacies.value = DefaultData.initialPharmacies
+                            _livePharmacies.value = emptyList()
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error in background listener: ${e.message}")
@@ -117,13 +113,9 @@ class PharmacyRepository(private val context: Context) {
                             val sorted = parsed.sortedBy { it.id }
                             _livePharmacies.value = sorted
                             trySend(sorted)
-                        } else if (snapshot.exists()) {
+                        } else {
                             _livePharmacies.value = emptyList()
                             trySend(emptyList())
-                        } else {
-                            seedDefaultPharmacies()
-                            _livePharmacies.value = DefaultData.initialPharmacies
-                            trySend(DefaultData.initialPharmacies)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing pharmacies in callbackFlow: ${e.message}")
@@ -147,113 +139,6 @@ class PharmacyRepository(private val context: Context) {
             if (ref != null && listener != null) {
                 ref.removeEventListener(listener)
             }
-        }
-    }
-
-    private fun seedDefaultPharmacies() {
-        try {
-            val ref = pharmaciesRef ?: return
-            val map = mutableMapOf<String, Pharmacy>()
-            DefaultData.initialPharmacies.forEach { p ->
-                map[p.id.toString()] = p
-            }
-            ref.setValue(map)
-        } catch (e: Exception) {
-            Log.w(TAG, "Cannot seed initial pharmacies: ${e.message}")
-        }
-    }
-
-    /**
-     * Add a pharmacy with key preservation directly at /pharmacies/$id
-     */
-    fun addPharmacy(pharmacy: Pharmacy): Long {
-        val currentList = _livePharmacies.value
-        val assignedId = if (pharmacy.id > 0) {
-            pharmacy.id
-        } else {
-            val maxId = currentList.maxOfOrNull { it.id } ?: 0L
-            maxId + 1L
-        }
-        val targetPharmacy = pharmacy.copy(id = assignedId)
-
-        val updated = currentList.filterNot { it.id == assignedId } + targetPharmacy
-        _livePharmacies.value = updated.sortedBy { it.id }
-
-        try {
-            pharmaciesRef?.child(assignedId.toString())?.setValue(targetPharmacy)
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to write pharmacy $assignedId to Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing pharmacy $assignedId: ${e.message}")
-        }
-        return assignedId
-    }
-
-    /**
-     * Update an existing pharmacy preserving its ID directly at /pharmacies/$id
-     */
-    fun updatePharmacy(pharmacy: Pharmacy) {
-        val targetId = pharmacy.id
-        val currentList = _livePharmacies.value
-        val updated = currentList.map { if (it.id == targetId) pharmacy else it }
-        _livePharmacies.value = updated
-
-        try {
-            pharmaciesRef?.child(targetId.toString())?.setValue(pharmacy)
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to update pharmacy $targetId in Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating pharmacy $targetId: ${e.message}")
-        }
-    }
-
-    /**
-     * Delete a pharmacy by ID directly removing the child at /pharmacies/$id
-     */
-    fun deletePharmacy(pharmacyId: Long) {
-        val currentList = _livePharmacies.value
-        _livePharmacies.value = currentList.filterNot { it.id == pharmacyId }
-
-        try {
-            pharmaciesRef?.child(pharmacyId.toString())?.removeValue()
-                ?.addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to delete pharmacy $pharmacyId in Firebase: ${error.message}")
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing pharmacy $pharmacyId: ${e.message}")
-        }
-    }
-
-    fun deletePharmacy(pharmacy: Pharmacy) {
-        deletePharmacy(pharmacy.id)
-    }
-
-    fun savePharmacies(list: List<Pharmacy>) {
-        _livePharmacies.value = list
-        try {
-            val map = mutableMapOf<String, Pharmacy>()
-            list.forEach { p ->
-                map[p.id.toString()] = p
-            }
-            pharmaciesRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error batch saving pharmacies: ${e.message}")
-        }
-    }
-
-    fun resetToDefaults() {
-        val initial = DefaultData.initialPharmacies
-        _livePharmacies.value = initial
-        try {
-            val map = mutableMapOf<String, Pharmacy>()
-            initial.forEach { p ->
-                map[p.id.toString()] = p
-            }
-            pharmaciesRef?.setValue(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resetting pharmacies in Firebase: ${e.message}")
         }
     }
 

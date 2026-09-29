@@ -22,32 +22,6 @@ class LaboratoryViewModel(
             initialValue = repository.laboratoriesFlow.value
         )
 
-    fun addLaboratory(laboratory: Laboratory): Long {
-        return repository.addLaboratory(laboratory)
-    }
-
-    fun updateLaboratory(laboratory: Laboratory) {
-        viewModelScope.launch {
-            repository.updateLaboratory(laboratory)
-        }
-    }
-
-    fun deleteLaboratory(laboratoryId: Long) {
-        viewModelScope.launch {
-            repository.deleteLaboratory(laboratoryId)
-        }
-    }
-
-    fun deleteLaboratory(laboratory: Laboratory) {
-        deleteLaboratory(laboratory.id)
-    }
-
-    fun resetToDefaults() {
-        viewModelScope.launch {
-            repository.resetToDefaults()
-        }
-    }
-
     fun refresh() {
         viewModelScope.launch {
             repository.reconnectRealtime()
