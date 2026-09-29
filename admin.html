@@ -137,42 +137,428 @@
         
         <!-- Navigation Tabs -->
         <div class="flex flex-wrap border-b border-gray-200 mb-6 gap-2">
-            <button onclick="switchTab('doctors')" id="tab-doctors" class="tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg">
+                <i class="fa-solid fa-sliders"></i>
+                <span>لوحة التحكم الموحدة والإعلانات</span>
+            </button>
+            <button onclick="switchTab('doctors')" id="tab-doctors" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
                 <i class="fa-solid fa-stethoscope"></i>
-                <span>الأطباء (/doctors)</span>
+                <span>إدارة الأطباء (/doctors)</span>
             </button>
             <button onclick="switchTab('pharmacies')" id="tab-pharmacies" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
                 <i class="fa-solid fa-pills"></i>
-                <span>الصيدليات (/pharmacies)</span>
+                <span>إدارة الصيدليات (/pharmacies)</span>
             </button>
             <button onclick="switchTab('laboratories')" id="tab-laboratories" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
                 <i class="fa-solid fa-flask"></i>
-                <span>المختبرات (/laboratories)</span>
-            </button>
-            <button onclick="switchTab('banner')" id="tab-banner" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
-                <i class="fa-solid fa-bullhorn"></i>
-                <span>إعلانات الرعاية (/sponsor_banner)</span>
-            </button>
-            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
-                <i class="fa-solid fa-sliders"></i>
-                <span>إعدادات التطبيق (/app_settings)</span>
-            </button>
-            <button onclick="switchTab('staticBanner')" id="tab-static-banner" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
-                <i class="fa-solid fa-image"></i>
-                <span>بانر البحث (/static_banner)</span>
-            </button>
-            <button onclick="switchTab('fab')" id="tab-fab" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
-                <i class="fa-brands fa-whatsapp"></i>
-                <span>زر الواتساب (/fab)</span>
-            </button>
-            <button onclick="switchTab('contact')" id="tab-contact" class="tab-btn px-5 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 flex items-center gap-2 transition rounded-t-lg">
-                <i class="fa-solid fa-headset"></i>
-                <span>التواصل (/contact)</span>
+                <span>إدارة المختبرات (/laboratories)</span>
             </button>
         </div>
 
+        <!-- SECTION 0: UNIFIED CONTROL DASHBOARD (Primary 3-Card Center) -->
+        <section id="section-dashboard" class="space-y-8">
+
+            <!-- CARD 1: TOP SEARCH BAR BANNER MANAGEMENT -->
+            <div id="banner-card" class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-inner">
+                            <i class="fa-solid fa-rectangle-ad"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">البطاقة 1: إدارة الإعلان الرئيسي (أعلى شريط البحث)</h2>
+                            <p class="text-xs text-gray-500">يظهر أعلى شريط البحث في الصفحة الرئيسية مع تحويل ذكي للاتصال أو الروابط ومزامنة فورية.</p>
+                        </div>
+                    </div>
+                    <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full border border-indigo-100 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-indigo-600 text-xs"></i> مزامنة تلقائية ⚡
+                    </span>
+                </div>
+
+                <form id="banner-form" onsubmit="saveBanner(event)" class="space-y-5" enctype="multipart/form-data">
+                    <!-- Image Upload Area with Live Preview -->
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                        <label class="block text-xs font-bold text-gray-800 mb-2">صورة الإعلان الرئيسية *</label>
+                        
+                        <div class="flex flex-col sm:flex-row items-center gap-4">
+                            <div id="banner-preview-container" class="relative w-full sm:w-64 h-28 bg-gray-200 rounded-2xl overflow-hidden flex items-center justify-center border border-gray-300 shadow-inner">
+                                <img id="banner-preview-img" src="" alt="معاينة الصورة" class="w-full h-full object-cover hidden">
+                                <div id="banner-preview-placeholder" class="text-center text-gray-400 p-2 text-xs">
+                                    <i class="fa-solid fa-image text-2xl mb-1 text-gray-300 block"></i>
+                                    <span>لا توجد صورة محددة</span>
+                                </div>
+                                <button type="button" id="banner-remove-img-btn" onclick="clearBannerImage()" class="hidden absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs shadow-lg hover:bg-red-700 transition" title="إزالة الصورة">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex-1 w-full space-y-2">
+                                <input type="file" id="banner-image-file" accept="image/*" onchange="previewBannerFile(this)" class="w-full text-xs text-gray-600 file:mr-0 file:ml-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer shadow-sm transition">
+                                <p class="text-[11px] text-gray-500 leading-relaxed">
+                                    <i class="fa-solid fa-circle-info text-indigo-500 ml-1"></i>
+                                    يتم ضغط الصورة تلقائياً بجودة فائقة عبر المتصفح لمنع التجميد ولتوفير سرعة تحميل فائقة داخل تطبيق الأندرويد.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Basic Details -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">عنوان الإعلان *</label>
+                            <input type="text" id="banner-title" required class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm transition" placeholder="مثال: مجمع النور الطبي التخصصي">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">حالة ظهور الإعلان في التطبيق</label>
+                            <select id="banner-active" class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-semibold transition">
+                                <option value="true">✅ نشط ومرئي للمستخدمين فوراً</option>
+                                <option value="false">❌ غير نشط (مخفي من التطبيق)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Action Input & Type (Smart Action Handling) -->
+                    <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-indigo-900">
+                                <i class="fa-solid fa-arrow-pointer ml-1 text-indigo-600"></i>
+                                الإجراء عند النقر على الإعلان (هاتف أو رابط ويب) *
+                            </label>
+                            <span class="text-[11px] text-indigo-700 font-semibold bg-white px-2 py-0.5 rounded-lg border border-indigo-200">التوجيه الذكي مفعّل</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-600 mb-1">نوع الإجراء</label>
+                                <select id="banner-action-type" onchange="updateActionInputPlaceholder()" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-xs bg-white font-medium">
+                                    <option value="AUTO" selected>⚡ تلقائي ذكي (يتعرف على الهاتف أو الرابط)</option>
+                                    <option value="PHONE">📞 اتصال هاتفي مباشر (لوحة الاتصال)</option>
+                                    <option value="URL">🌐 فتح رابط خارجي (موقع إلكتروني)</option>
+                                    <option value="WHATSAPP">💬 محادثة واتساب فورية</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-bold text-gray-600 mb-1">رقم الهاتف أو الرابط (Action Input)</label>
+                                <input type="text" id="banner-action-input" required dir="ltr"
+                                       class="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm text-left"
+                                       placeholder="مثال: 07800000000 أو https://example.com">
+                            </div>
+                        </div>
+                        <p id="banner-action-hint" class="text-[11px] text-indigo-600">
+                            <i class="fa-solid fa-bolt ml-1"></i> عند الضغط في التطبيق: إذا كان المدخل رقم هاتف سيفتح لوحة الاتصال (Intent.ACTION_DIAL)، وإذا كان رابطاً سيفتح المتصفح (Intent.ACTION_VIEW).
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ انتهاء الإعلان (اختياري)</label>
+                            <input type="date" id="banner-expiry" class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">الوصف الفرعي (اختياري)</label>
+                            <input type="text" id="banner-desc" class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="مثال: خصم 20% على التحاليل المرضية والعيادات">
+                        </div>
+                    </div>
+
+                    <!-- Live In-App Simulator Preview -->
+                    <div class="border border-dashed border-gray-300 rounded-2xl p-4 bg-gray-50/50">
+                        <span class="block text-xs font-bold text-gray-600 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-mobile-screen text-indigo-500"></i> معاينة مباشرة لشكل الإعلان في التطبيق (أعلى شريط البحث):
+                        </span>
+                        <div class="max-w-md mx-auto bg-white rounded-2xl shadow-md overflow-hidden border border-gray-200 relative aspect-[16/5.2]">
+                            <img id="sim-banner-img" src="" class="w-full h-full object-cover hidden">
+                            <div id="sim-banner-placeholder" class="w-full h-full bg-gradient-to-r from-teal-700 to-teal-900 flex items-center justify-center text-white text-xs font-bold">
+                                مجمع النور الطبي التخصصي - زمار
+                            </div>
+                            <div class="absolute top-0 right-0 bg-black/70 text-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded-bl-xl flex items-center gap-1">
+                                <i class="fa-solid fa-bullhorn text-[9px]"></i> إعلان رعاية
+                            </div>
+                            <div class="absolute bottom-0 right-0 bg-black/60 text-white p-2 text-right">
+                                <div id="sim-banner-title" class="font-bold text-xs truncate">مجمع النور الطبي التخصصي</div>
+                                <div id="sim-banner-desc" class="text-[10px] text-gray-200 truncate">أوقات الدوام وخدمات العيادات الاستشارية</div>
+                            </div>
+                            <div class="absolute bottom-0 left-0 bg-teal-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-tr-xl flex items-center gap-1" id="sim-action-badge">
+                                <i class="fa-solid fa-phone text-[9px]"></i> <span id="sim-action-text">اتصال مباشر</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button type="submit" id="banner-save-btn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span id="banner-btn-text">حفظ وتحديث الإعلان الرئيسي</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- CARD 2: UNIFIED DYNAMIC APP LINKS & ACTION BUTTONS SECTION -->
+            <div id="actions-card" class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">البطاقة 2: إدارة الروابط والأزرار التفاعلية الموحدة (App Links & Buttons)</h2>
+                            <p class="text-xs text-gray-500">إدارة مركزية لجميع أزرار التطبيق مع دعم التوجيه الذكي للمكالمات أو الروابط والتحكم بالظهور الفوري.</p>
+                        </div>
+                    </div>
+                    <span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-emerald-600"></i> أزرار تفاعلية موحدة
+                    </span>
+                </div>
+
+                <form id="app-actions-form" onsubmit="saveAppActions(event)" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                        <!-- Action 1: Floating Action Button (FAB) -->
+                        <div class="p-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 shadow-sm hover:shadow transition flex flex-col justify-between">
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-base shadow-sm">
+                                            <i class="fa-brands fa-whatsapp"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-sm text-gray-900">الزر الأخضر العائم (FAB)</h3>
+                                            <span class="text-[10px] text-emerald-700 font-semibold">Floating Action Button</span>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                                        <input type="checkbox" id="action-fab-active" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">نوع الإجراء</label>
+                                    <select id="action-fab-type" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-xs bg-white">
+                                        <option value="AUTO">⚡ تلقائي ذكي (هاتف أو رابط)</option>
+                                        <option value="WHATSAPP" selected>💬 محادثة واتساب فورية</option>
+                                        <option value="PHONE">📞 اتصال هاتفي مباشر</option>
+                                        <option value="URL">🌐 رابط ويب خارجي</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">الرقم أو الرابط (Action Input)</label>
+                                    <input type="text" id="action-fab-input" required dir="ltr"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-xs text-left"
+                                           placeholder="مثال: +9647875023922">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-3 pt-2 border-t border-emerald-100">
+                                يظهر كالزر الأخضر العائم في الزاوية السفلى من جميع شاشات التطبيق.
+                            </p>
+                        </div>
+
+                        <!-- Action 2: Report a Problem -->
+                        <div class="p-5 rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50/40 shadow-sm hover:shadow transition flex flex-col justify-between">
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center text-base shadow-sm">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-sm text-gray-900">زر إبلاغ عن مشكلة</h3>
+                                            <span class="text-[10px] text-amber-700 font-semibold">Report a Problem</span>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                                        <input type="checkbox" id="action-report-active" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">نوع الإجراء</label>
+                                    <select id="action-report-type" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs bg-white">
+                                        <option value="AUTO" selected>⚡ تلقائي ذكي (هاتف أو رابط)</option>
+                                        <option value="PHONE">📞 اتصال هاتفي مباشر</option>
+                                        <option value="URL">🌐 رابط استبيان / شكاوى خارجي</option>
+                                        <option value="WHATSAPP">💬 محادثة واتساب فورية</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">الرقم أو الرابط (Action Input)</label>
+                                    <input type="text" id="action-report-input" required dir="ltr"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 text-xs text-left"
+                                           placeholder="مثال: +9647875023922 أو رابط فورم">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-3 pt-2 border-t border-amber-100">
+                                يظهر في شريط المساعدة وفي أسفل دليل الأطباء للمستخدمين.
+                            </p>
+                        </div>
+
+                        <!-- Action 3: Contact Us -->
+                        <div class="p-5 rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/40 shadow-sm hover:shadow transition flex flex-col justify-between">
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-sm">
+                                            <i class="fa-solid fa-headset"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-sm text-gray-900">زر تواصل معنا / اتصل بنا</h3>
+                                            <span class="text-[10px] text-blue-700 font-semibold">Contact Us Button</span>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                                        <input type="checkbox" id="action-contact-active" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">نوع الإجراء</label>
+                                    <select id="action-contact-type" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-xs bg-white">
+                                        <option value="AUTO" selected>⚡ تلقائي ذكي (هاتف أو رابط)</option>
+                                        <option value="PHONE">📞 اتصال هاتفي مباشر</option>
+                                        <option value="WHATSAPP">💬 محادثة واتساب فورية</option>
+                                        <option value="URL">🌐 موقع أو صفحة تواصل</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-gray-700 mb-1">الرقم أو الرابط (Action Input)</label>
+                                    <input type="text" id="action-contact-input" required dir="ltr"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-xs text-left"
+                                           placeholder="مثال: +9647875023922">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-3 pt-2 border-t border-blue-100">
+                                يظهر في الواجهة الرئيسية وأسفل القوائم للتواصل مع إدارة التطبيق.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" id="app-actions-save-btn" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span id="app-actions-btn-text">حفظ إعدادات الروابط والأزرار الموحدة</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- CARD 3: CENTRALIZED PHARMACY & LABORATORY LOCK / STATUS CONTROLS -->
+            <div id="locks-card" class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl shadow-inner">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">البطاقة 3: لوحة التحكم المركزية بأقفال وحالات الصيدليات والمختبرات</h2>
+                            <p class="text-xs text-gray-500">التحكم الموحد بالأقفال العامة لكل قسم وإدارة الصيدليات الخافرة والمناوبة من مكان واحد.</p>
+                        </div>
+                    </div>
+                    <span class="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-full border border-teal-100 flex items-center gap-1.5">
+                        <i class="fa-solid fa-toggle-on text-teal-600"></i> أقفال مركزية
+                    </span>
+                </div>
+
+                <!-- Global Section Master Locks -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Pharmacies Master Lock -->
+                    <div class="border border-gray-200 rounded-2xl p-5 bg-gradient-to-br from-white to-emerald-50/30 shadow-sm">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
+                                    <i class="fa-solid fa-pills"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">القفل العام لقسم الصيدليات</h3>
+                                    <span class="text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">pharmacies_enabled</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" id="toggle-pharmacies" class="sr-only peer" onchange="toggleSection('pharmacies', this.checked)">
+                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
+                            <span id="pharmacies-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تفيد بأن قسم الصيدليات <strong class="text-gray-700">"قريباً"</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Laboratories Master Lock -->
+                    <div class="border border-gray-200 rounded-2xl p-5 bg-gradient-to-br from-white to-teal-50/30 shadow-sm">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <div class="w-12 h-12 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl shadow-inner">
+                                    <i class="fa-solid fa-flask"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">القفل العام لقسم المختبرات</h3>
+                                    <span class="text-xs font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-semibold">laboratories_enabled</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" id="toggle-laboratories" class="sr-only peer" onchange="toggleSection('laboratories', this.checked)">
+                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-teal-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
+                            <span id="laboratories-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تفيد بأن قسم المختبرات <strong class="text-gray-700">"قريباً"</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Fast On-Duty & Availability Quick Toggles for Pharmacies -->
+                <div class="bg-gray-50/70 rounded-2xl p-5 border border-gray-200 space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                <i class="fa-solid fa-moon text-indigo-600"></i>
+                                جدول الصيدليات الخافرة والمناوبة الليلة (تعديل فوري وسريع)
+                            </h3>
+                            <p class="text-xs text-gray-500">قم بتفعيل الصيدلية المناوبة لهذه الليلة مباشرة دون الحاجة للدخول لصفحة التعديل.</p>
+                        </div>
+                        <span id="duty-count-badge" class="bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-xl text-xs">
+                            0 صيدليات مناوبة
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto bg-white rounded-xl border border-gray-200">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-gray-50 text-gray-700 border-b border-gray-200 font-bold">
+                                <tr>
+                                    <th class="py-2.5 px-3">اسم الصيدلية</th>
+                                    <th class="py-2.5 px-3">الصيدلاني المسؤول</th>
+                                    <th class="py-2.5 px-3">الهاتف</th>
+                                    <th class="py-2.5 px-3 text-center">مناوبة الليلة (خافرة)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quick-pharmacies-tbody" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-gray-400">جاري تحميل الصيدليات...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
         <!-- TAB 1: DOCTORS SECTION -->
-        <section id="section-doctors" class="space-y-6">
+        <section id="section-doctors" class="space-y-6 hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">قائمة الأطباء في زمار</h2>
@@ -279,177 +665,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </section>
-
-            <!-- TAB 5: BANNER MANAGEMENT -->
-            <section id="section-banner" class="space-y-6 hidden">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة الإعلان الرئيسي</h2>
-                    <form id="banner-form" onsubmit="saveBanner(event)" class="space-y-4" enctype="multipart/form-data">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">عنوان الإعلان</label>
-                                <input type="text" id="banner-title" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">حالة الإعلان</label>
-                                <select id="banner-active" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                                    <option value="true">نشط</option>
-                                    <option value="false">غير نشط</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">رابط الزر / رابط التحويل</label>
-                                <input type="text" id="banner-action-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">صورة الإعلان</label>
-                            <input type="file" id="banner-image-file" accept="image/*" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            <p class="text-xs text-gray-500 mt-1">أبعاد الصورة المثالية: 1080x500 بكسل</p>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">الهاتف / واتساب</label>
-                                <input type="text" id="banner-action-value" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء</label>
-                                <input type="date" id="banner-expiry" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">وصف الإعلان</label>
-                            <textarea id="banner-desc" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" rows="2"></textarea>
-                        </div>
-                        <button type="submit" id="banner-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ الإعلان</button>
-                    </form>
-                </div>
-            </section>
-
-            </section>
-
-            <!-- TAB 6: STATIC BANNER MANAGEMENT -->
-            <section id="section-static-banner" class="space-y-6 hidden">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة البانر الثابت (تحت البحث)</h2>
-                    <form id="static-banner-form" onsubmit="saveStaticBanner(event)" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">صورة البانر</label>
-                            <input type="file" id="static-banner-file" accept="image/*" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                            <p class="text-xs text-gray-500 mt-1">أبعاد الصورة المثالية: 1080x300 بكسل</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">رابط التحويل</label>
-                            <input type="text" id="static-banner-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                        </div>
-                        <button type="submit" id="static-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ البانر</button>
-                    </form>
-                </div>
-            </section>
-
-            <!-- TAB 7: FAB MANAGEMENT -->
-            <section id="section-fab" class="space-y-6 hidden">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة زر الواتساب (Floating Button)</h2>
-                    <form id="fab-form" onsubmit="showToast('تم حفظ إعدادات الزر بنجاح!'); return false;" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">رقم الواتساب</label>
-                            <input type="text" id="fab-phone" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="مثال: 9647800000000">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">حالة الزر</label>
-                            <select id="fab-active" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
-                                <option value="true">نشط</option>
-                                <option value="false">معطل</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ إعدادات الزر</button>
-                    </form>
-                </div>
-            </section>
-
-            <!-- TAB 8: CONTACT MANAGEMENT -->
-            <section id="section-contact" class="space-y-6 hidden">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة روابط التواصل والشكاوى</h2>
-                    <form id="contact-form" onsubmit="showToast('تم حفظ روابط التواصل بنجاح!'); return false;" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني للشكاوى</label>
-                            <input type="email" id="contact-email" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="admin@zummar.com">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">رابط نموذج الشكاوى</label>
-                            <input type="text" id="contact-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="https://forms.gle/...">
-                        </div>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">حفظ روابط التواصل</button>
-                    </form>
-                </div>
-            </section>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Pharmacies Feature Flag Card -->
-                    <div class="border border-gray-200 rounded-2xl p-6 bg-gradient-to-br from-white to-emerald-50/30 shadow-sm hover:shadow transition">
-                        <div class="flex items-start justify-between">
-                            <div class="flex items-center space-x-3 space-x-reverse">
-                                <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
-                                    <i class="fa-solid fa-pills"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-gray-900 text-base">قسم الصيدليات</h3>
-                                    <span class="text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">pharmacies_enabled</span>
-                                </div>
-                            </div>
-                            <!-- Live Toggle Switch -->
-                            <label class="relative inline-flex items-center cursor-pointer select-none">
-                                <input type="checkbox" id="toggle-pharmacies" class="sr-only peer" onchange="toggleSection('pharmacies', this.checked)">
-                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
-                            </label>
-                        </div>
-
-                        <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
-                            <span id="pharmacies-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2.5 leading-relaxed">
-                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تنبيه تفيد بأن قسم الصيدليات <strong class="text-gray-700">"قريباً"</strong> وسيتم افتتاحه لاحقاً.
-                        </p>
-                    </div>
-
-                    <!-- Laboratories Feature Flag Card -->
-                    <div class="border border-gray-200 rounded-2xl p-6 bg-gradient-to-br from-white to-teal-50/30 shadow-sm hover:shadow transition">
-                        <div class="flex items-start justify-between">
-                            <div class="flex items-center space-x-3 space-x-reverse">
-                                <div class="w-12 h-12 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl shadow-inner">
-                                    <i class="fa-solid fa-flask"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-gray-900 text-base">قسم المختبرات</h3>
-                                    <span class="text-xs font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-semibold">laboratories_enabled</span>
-                                </div>
-                            </div>
-                            <!-- Live Toggle Switch -->
-                            <label class="relative inline-flex items-center cursor-pointer select-none">
-                                <input type="checkbox" id="toggle-laboratories" class="sr-only peer" onchange="toggleSection('laboratories', this.checked)">
-                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-teal-600"></div>
-                            </label>
-                        </div>
-
-                        <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                            <span class="text-gray-500 font-medium">الحالة في التطبيق:</span>
-                            <span id="laboratories-status-badge" class="px-3 py-1 rounded-full font-bold bg-gray-100 text-gray-600">جاري القراءة...</span>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2.5 leading-relaxed">
-                            عند تعطيل هذا المفتاح، يرى مستخدم تطبيق الأندرويد رسالة تنبيه تفيد بأن قسم المختبرات <strong class="text-gray-700">"قريباً"</strong> وسيتم افتتاحه لاحقاً.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="mt-6 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 text-xs text-indigo-800">
-                    <i class="fa-solid fa-bolt text-indigo-500 text-base flex-shrink-0"></i>
-                    <span>يتم حفظ وتطبيق التغييرات فوراً في قاعدة بيانات Firebase Realtime وتصل لمستخدمي تطبيق الأندرويد دون الحاجة لتحديث التطبيق.</span>
                 </div>
             </div>
         </section>
@@ -916,6 +1131,7 @@
             pharmaciesListenerRef.on('value', (snapshot) => {
                 pharmaciesData = snapshot.val() || {};
                 renderPharmacies(snapshot);
+                renderQuickDutyPharmacies(snapshot);
             });
 
             // Laboratories listener
@@ -925,15 +1141,29 @@
                 renderLabs(snapshot);
             });
 
-            // Banner listener
+            // Banner listener (Top Banner Above Search Bar)
             rtdb.ref('sponsor_banner').on('value', (snapshot) => {
                 const banner = snapshot.val() || {};
-                document.getElementById('banner-title').value = banner.title || '';
-                document.getElementById('banner-desc').value = banner.description || '';
-                document.getElementById('banner-active').value = String(banner.isActive !== false);
-                document.getElementById('banner-action-value').value = banner.actionValue || '';
-                document.getElementById('banner-action-link').value = banner.actionLink || '';
-                document.getElementById('banner-expiry').value = banner.expiryDate || '';
+                const titleInput = document.getElementById('banner-title');
+                const descInput = document.getElementById('banner-desc');
+                const activeInput = document.getElementById('banner-active');
+                const actionInput = document.getElementById('banner-action-input');
+                const actionTypeSelect = document.getElementById('banner-action-type');
+                const expiryInput = document.getElementById('banner-expiry');
+
+                if (titleInput) titleInput.value = banner.title || '';
+                if (descInput) descInput.value = banner.description || '';
+                if (activeInput) activeInput.value = String(banner.isActive !== false);
+                
+                const currentAction = banner.actionLink || banner.actionValue || '';
+                if (actionInput) actionInput.value = currentAction;
+                if (actionTypeSelect) actionTypeSelect.value = banner.actionType || 'AUTO';
+                if (expiryInput) expiryInput.value = banner.expiryDate || '';
+
+                // Update current image preview
+                currentBannerImageUrl = banner.imagePath || '';
+                renderBannerPreview(currentBannerImageUrl);
+                updateSimulatorPreview();
             });
 
             // App Settings (/app_settings) listener
@@ -941,16 +1171,57 @@
             settingsListenerRef.on('value', (snapshot) => {
                 const val = snapshot.val() || {};
                 currentSettings = {
-                    pharmacies_enabled: val.pharmacies_enabled !== false,
-                    laboratories_enabled: val.laboratories_enabled !== false
+                    pharmacies_enabled: val.pharmacies_enabled !== false && val.pharmaciesEnabled !== false,
+                    laboratories_enabled: val.laboratories_enabled !== false && val.laboratoriesEnabled !== false
                 };
                 updateSettingsUI();
+
+                // Populate Dynamic App Links & Action Buttons
+                // 1. FAB
+                const fab = val.fab_button || val.fabButton || val.fab || {};
+                const fabActive = (typeof fab.isActive === 'boolean') ? fab.isActive : ((typeof val.fab_active === 'boolean') ? val.fab_active : true);
+                const fabType = fab.actionType || val.fab_action_type || 'WHATSAPP';
+                const fabInput = fab.actionInput || fab.actionValue || fab.phone || val.fab_phone || val.fab_action || '+9647875023922';
+                
+                const fabActiveEl = document.getElementById('action-fab-active');
+                const fabTypeEl = document.getElementById('action-fab-type');
+                const fabInputEl = document.getElementById('action-fab-input');
+                if (fabActiveEl) fabActiveEl.checked = fabActive;
+                if (fabTypeEl) fabTypeEl.value = fabType;
+                if (fabInputEl) fabInputEl.value = fabInput;
+
+                // 2. Report Problem
+                const report = val.report_problem || val.reportProblem || val.report || {};
+                const reportActive = (typeof report.isActive === 'boolean') ? report.isActive : ((typeof val.report_active === 'boolean') ? val.report_active : true);
+                const reportType = report.actionType || val.report_action_type || 'AUTO';
+                const reportInput = report.actionInput || report.actionValue || report.link || report.phone || val.report_action || '+9647875023922';
+
+                const reportActiveEl = document.getElementById('action-report-active');
+                const reportTypeEl = document.getElementById('action-report-type');
+                const reportInputEl = document.getElementById('action-report-input');
+                if (reportActiveEl) reportActiveEl.checked = reportActive;
+                if (reportTypeEl) reportTypeEl.value = reportType;
+                if (reportInputEl) reportInputEl.value = reportInput;
+
+                // 3. Contact Us
+                const contact = val.contact_us || val.contactUs || val.contact || {};
+                const contactActive = (typeof contact.isActive === 'boolean') ? contact.isActive : ((typeof val.contact_active === 'boolean') ? val.contact_active : true);
+                const contactType = contact.actionType || val.contact_action_type || 'AUTO';
+                const contactInput = contact.actionInput || contact.actionValue || contact.link || contact.phone || val.contact_action || '+9647875023922';
+
+                const contactActiveEl = document.getElementById('action-contact-active');
+                const contactTypeEl = document.getElementById('action-contact-type');
+                const contactInputEl = document.getElementById('action-contact-input');
+                if (contactActiveEl) contactActiveEl.checked = contactActive;
+                if (contactTypeEl) contactTypeEl.value = contactType;
+                if (contactInputEl) contactInputEl.value = contactInput;
             });
 
             // Static Banner listener
             rtdb.ref('static_banner').on('value', (snapshot) => {
                 const banner = snapshot.val() || {};
-                document.getElementById('static-banner-link').value = banner.actionLink || '';
+                const staticLink = document.getElementById('static-banner-link');
+                if (staticLink) staticLink.value = banner.actionLink || '';
             });
         }
 
@@ -959,6 +1230,126 @@
             if (pharmaciesListenerRef) pharmaciesListenerRef.off();
             if (laboratoriesListenerRef) laboratoriesListenerRef.off();
             if (settingsListenerRef) settingsListenerRef.off();
+        }
+
+        // Quick duty pharmacies renderer for Card 3
+        function renderQuickDutyPharmacies(snapshot) {
+            const tbody = document.getElementById('quick-pharmacies-tbody');
+            const badge = document.getElementById('duty-count-badge');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            const list = [];
+            let onDutyCount = 0;
+
+            snapshot.forEach((child) => {
+                const p = { firebaseKey: child.key, ...child.val() };
+                list.push(p);
+                if (p.isOnDutyTonight === true) onDutyCount++;
+            });
+
+            if (badge) {
+                badge.innerText = `${onDutyCount} صيدلية مناوبة الليلة`;
+                badge.className = onDutyCount > 0 ? "bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-xl text-xs" : "bg-gray-100 text-gray-600 font-bold px-3 py-1 rounded-xl text-xs";
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-gray-400">لا توجد صيدليات مسجلة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(p => {
+                const phone = Array.isArray(p.phoneNumbers) ? p.phoneNumbers[0] : (p.phoneNumbers || '-');
+                const isDuty = p.isOnDutyTonight === true;
+                return `
+                    <tr class="hover:bg-gray-50/80 transition ${isDuty ? 'bg-emerald-50/40' : ''}">
+                        <td class="py-2 px-3 font-bold text-gray-900 flex items-center gap-1.5">
+                            ${isDuty ? '<i class="fa-solid fa-moon text-amber-500 text-xs"></i>' : ''}
+                            <span>${escapeHtml(p.name || '')}</span>
+                        </td>
+                        <td class="py-2 px-3 text-gray-600">${escapeHtml(p.pharmacist || '-')}</td>
+                        <td class="py-2 px-3 font-mono text-gray-500" dir="ltr">${escapeHtml(phone)}</td>
+                        <td class="py-2 px-3 text-center">
+                            <label class="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" ${isDuty ? 'checked' : ''} onchange="toggleDutyTonight('${p.firebaseKey}', this.checked)" class="sr-only peer">
+                                <div class="w-10 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function toggleDutyTonight(key, isChecked) {
+            rtdb.ref(`pharmacies/${key}`).update({ isOnDutyTonight: isChecked })
+                .then(() => {
+                    const statusText = isChecked ? 'تم تعيين الصيدلية كمناوبة الليلة 🌙' : 'تم إلغاء مناوبة الصيدلية';
+                    showToast(statusText, 'success');
+                })
+                .catch(err => {
+                    showToast('خطأ أثناء التحديث: ' + err.message, 'error');
+                });
+        }
+
+        // Save Unified Dynamic App Links & Action Buttons (Card 2)
+        async function saveAppActions(e) {
+            e.preventDefault();
+            const btn = document.getElementById('app-actions-save-btn');
+            const btnText = document.getElementById('app-actions-btn-text');
+            btn.disabled = true;
+            btnText.innerText = 'جاري حفظ الأزرار...';
+
+            try {
+                const fabActive = document.getElementById('action-fab-active').checked;
+                const fabType = document.getElementById('action-fab-type').value;
+                const fabInput = document.getElementById('action-fab-input').value.trim();
+
+                const reportActive = document.getElementById('action-report-active').checked;
+                const reportType = document.getElementById('action-report-type').value;
+                const reportInput = document.getElementById('action-report-input').value.trim();
+
+                const contactActive = document.getElementById('action-contact-active').checked;
+                const contactType = document.getElementById('action-contact-type').value;
+                const contactInput = document.getElementById('action-contact-input').value.trim();
+
+                const payload = {
+                    fab_button: {
+                        isActive: fabActive,
+                        actionType: fabType,
+                        actionInput: fabInput,
+                        actionValue: fabInput
+                    },
+                    report_problem: {
+                        isActive: reportActive,
+                        actionType: reportType,
+                        actionInput: reportInput,
+                        actionValue: reportInput
+                    },
+                    contact_us: {
+                        isActive: contactActive,
+                        actionType: contactType,
+                        actionInput: contactInput,
+                        actionValue: contactInput
+                    },
+                    // Legacy & Flat field compatibility
+                    fab_active: fabActive,
+                    fab_action: fabInput,
+                    fab_phone: fabInput,
+                    report_active: reportActive,
+                    report_action: reportInput,
+                    contact_active: contactActive,
+                    contact_action: contactInput
+                };
+
+                await rtdb.ref('app_settings').update(payload);
+                showToast('✅ تم حفظ جميع الأزرار والروابط وتحديثها فوراً في تطبيق الأندرويد!', 'success');
+            } catch (err) {
+                console.error('Error saving app actions:', err);
+                showToast('❌ خطأ أثناء حفظ الأزرار: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'حفظ إعدادات الروابط والأزرار الموحدة';
+            }
         }
 
         // 6. App Settings Feature Flags Logic
@@ -999,8 +1390,10 @@
             const updates = {};
             if (section === 'pharmacies') {
                 updates.pharmacies_enabled = isEnabled;
+                updates.pharmaciesEnabled = isEnabled;
             } else if (section === 'laboratories') {
                 updates.laboratories_enabled = isEnabled;
+                updates.laboratoriesEnabled = isEnabled;
             }
 
             rtdb.ref('app_settings').update(updates)
@@ -1022,27 +1415,26 @@
             });
             document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
 
-            if (tabName === 'doctors') {
-                document.getElementById('tab-doctors').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-doctors').classList.remove('hidden');
+            if (tabName === 'dashboard') {
+                const btn = document.getElementById('tab-dashboard');
+                const sec = document.getElementById('section-dashboard');
+                if (btn) btn.className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
+                if (sec) sec.classList.remove('hidden');
+            } else if (tabName === 'doctors') {
+                const btn = document.getElementById('tab-doctors');
+                const sec = document.getElementById('section-doctors');
+                if (btn) btn.className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
+                if (sec) sec.classList.remove('hidden');
             } else if (tabName === 'pharmacies') {
-                document.getElementById('tab-pharmacies').className = "tab-btn px-5 py-3 font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-pharmacies').classList.remove('hidden');
+                const btn = document.getElementById('tab-pharmacies');
+                const sec = document.getElementById('section-pharmacies');
+                if (btn) btn.className = "tab-btn px-5 py-3 font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center gap-2 transition rounded-t-lg";
+                if (sec) sec.classList.remove('hidden');
             } else if (tabName === 'laboratories') {
-                document.getElementById('tab-laboratories').className = "tab-btn px-5 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-laboratories').classList.remove('hidden');
-            } else if (tabName === 'banner') {
-                document.getElementById('tab-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-banner').classList.remove('hidden');
-            } else if (tabName === 'searchBanner') {
-                document.getElementById('tab-search-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-search-banner').classList.remove('hidden');
-            } else if (tabName === 'settings') {
-                document.getElementById('tab-settings').className = "tab-btn px-5 py-3 font-bold border-b-2 border-purple-600 text-purple-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-settings').classList.remove('hidden');
-            } else if (tabName === 'staticBanner') {
-                document.getElementById('tab-static-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
-                document.getElementById('section-static-banner').classList.remove('hidden');
+                const btn = document.getElementById('tab-laboratories');
+                const sec = document.getElementById('section-laboratories');
+                if (btn) btn.className = "tab-btn px-5 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center gap-2 transition rounded-t-lg";
+                if (sec) sec.classList.remove('hidden');
             }
         }
 
@@ -1797,93 +2189,259 @@
             }
         }
 
-        function saveBanner(e) {
-            e.preventDefault();
-            const btn = document.getElementById('banner-save-btn');
-            btn.disabled = true;
-            btn.innerText = 'جاري الحفظ...';
+        // --- SPONSOR BANNER (TOP BANNER ABOVE SEARCH BAR) ---
+        let currentBannerImageUrl = '';
+        let selectedBannerFileBase64 = null;
 
-            const file = document.getElementById('banner-image-file').files[0];
-            
-            const saveToDatabase = (imageUrl) => {
-                const bannerObj = {
-                    title: document.getElementById('banner-title').value,
-                    description: document.getElementById('banner-desc').value,
-                    isActive: document.getElementById('banner-active').value === 'true',
-                    actionValue: document.getElementById('banner-action-value').value,
-                    actionLink: document.getElementById('banner-action-link').value,
-                    expiryDate: document.getElementById('banner-expiry').value,
-                    actionType: 'WHATSAPP'
+        function previewBannerFile(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    compressImage(e.target.result, 1080, 0.82, function(compressedBase64) {
+                        selectedBannerFileBase64 = compressedBase64;
+                        renderBannerPreview(compressedBase64);
+                        updateSimulatorPreview();
+                    });
                 };
-                if (imageUrl) bannerObj.imagePath = imageUrl;
-                
-                rtdb.ref('sponsor_banner').update(bannerObj)
-                    .then(() => {
-                        showToast('تم حفظ الإعلان بنجاح!');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ الإعلان';
-                    })
-                    .catch(err => {
-                        console.error("Database save error:", err);
-                        showToast('خطأ في قاعدة البيانات: ' + err.message, 'error');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ الإعلان';
-                    });
-            };
-
-            if (file) {
-                const storageRef = storage.ref('banners/' + Date.now() + '_' + file.name);
-                storageRef.put(file)
-                    .then(snapshot => snapshot.ref.getDownloadURL())
-                    .then(url => saveToDatabase(url))
-                    .catch(err => {
-                        console.error("Storage upload error:", err);
-                        showToast('خطأ في رفع الصورة: ' + err.message, 'error');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ الإعلان';
-                    });
-            } else {
-                saveToDatabase(null);
+                reader.readAsDataURL(file);
             }
         }
-        function saveStaticBanner(e) {
+
+        function clearBannerImage() {
+            selectedBannerFileBase64 = null;
+            currentBannerImageUrl = '';
+            document.getElementById('banner-image-file').value = '';
+            renderBannerPreview('');
+            updateSimulatorPreview();
+        }
+
+        function renderBannerPreview(url) {
+            const previewImg = document.getElementById('banner-preview-img');
+            const placeholder = document.getElementById('banner-preview-placeholder');
+            const removeBtn = document.getElementById('banner-remove-img-btn');
+
+            if (url) {
+                previewImg.src = url;
+                previewImg.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                removeBtn.classList.remove('hidden');
+            } else {
+                previewImg.src = '';
+                previewImg.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                removeBtn.classList.add('hidden');
+            }
+        }
+
+        function compressImage(base64Str, maxWidth = 1080, quality = 0.82, callback) {
+            const img = new Image();
+            img.onload = function() {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = function() {
+                callback(base64Str);
+            };
+            img.src = base64Str;
+        }
+
+        function updateActionInputPlaceholder() {
+            const type = document.getElementById('banner-action-type').value;
+            const input = document.getElementById('banner-action-input');
+            const hint = document.getElementById('banner-action-hint');
+            
+            if (type === 'PHONE') {
+                input.placeholder = 'مثال: 07800000000 أو 07700000000';
+                hint.innerHTML = '<i class="fa-solid fa-phone ml-1 text-emerald-600"></i> سيتم فتح لوحة الاتصال (Intent.ACTION_DIAL) للاتصال المباشر بالرقم.';
+            } else if (type === 'URL') {
+                input.placeholder = 'مثال: https://alnoor-clinic.com أو https://facebook.com/...';
+                hint.innerHTML = '<i class="fa-solid fa-globe ml-1 text-blue-600"></i> سيتم فتح الرابط الخارجي (Intent.ACTION_VIEW) في متصفح الهاتف.';
+            } else if (type === 'WHATSAPP') {
+                input.placeholder = 'مثال: 9647800000000';
+                hint.innerHTML = '<i class="fa-brands fa-whatsapp ml-1 text-emerald-600"></i> سيتم فتح تطبيق واتساب فوراً لمراسلة الرقم.';
+            } else {
+                input.placeholder = 'مثال: 07800000000 أو https://example.com';
+                hint.innerHTML = '<i class="fa-solid fa-bolt ml-1 text-indigo-600"></i> كشف ذكي: إذا أدخلت رقماً سيفتح لوحة الاتصال، وإذا أدخلت رابطاً سيفتح المتصفح.';
+            }
+            updateSimulatorPreview();
+        }
+
+        function updateSimulatorPreview() {
+            const title = document.getElementById('banner-title')?.value || 'مجمع النور الطبي التخصصي';
+            const desc = document.getElementById('banner-desc')?.value || 'أوقات الدوام وخدمات العيادات الاستشارية';
+            const actionInput = document.getElementById('banner-action-input')?.value || '07800000000';
+            const actionType = document.getElementById('banner-action-type')?.value || 'AUTO';
+            
+            const simImg = document.getElementById('sim-banner-img');
+            const simPlaceholder = document.getElementById('sim-banner-placeholder');
+            const simTitle = document.getElementById('sim-banner-title');
+            const simDesc = document.getElementById('sim-banner-desc');
+            const simBadge = document.getElementById('sim-action-badge');
+            const simActionText = document.getElementById('sim-action-text');
+
+            if (simTitle) simTitle.innerText = title;
+            if (simDesc) simDesc.innerText = desc;
+
+            const imgSrc = selectedBannerFileBase64 || currentBannerImageUrl;
+            if (imgSrc) {
+                simImg.src = imgSrc;
+                simImg.classList.remove('hidden');
+                simPlaceholder.classList.add('hidden');
+            } else {
+                simImg.classList.add('hidden');
+                simPlaceholder.classList.remove('hidden');
+            }
+
+            const isPhone = (actionType === 'PHONE') || (actionType === 'AUTO' && /^[\d\s+\-()]{6,}$/.test(actionInput.trim()));
+            const isWhatsapp = (actionType === 'WHATSAPP');
+
+            if (simBadge && simActionText) {
+                if (isWhatsapp) {
+                    simBadge.className = 'absolute bottom-0 left-0 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-tr-lg flex items-center gap-1';
+                    simBadge.innerHTML = '<i class="fa-brands fa-whatsapp text-[9px]"></i> <span>مراسلة واتساب</span>';
+                } else if (isPhone) {
+                    simBadge.className = 'absolute bottom-0 left-0 bg-teal-600 text-white text-[10px] font-bold px-2 py-1 rounded-tr-lg flex items-center gap-1';
+                    simBadge.innerHTML = '<i class="fa-solid fa-phone text-[9px]"></i> <span>اتصال مباشر</span>';
+                } else {
+                    simBadge.className = 'absolute bottom-0 left-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-tr-lg flex items-center gap-1';
+                    simBadge.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> <span>فتح الرابط</span>';
+                }
+            }
+        }
+
+        // Add live input listeners for simulator
+        ['banner-title', 'banner-desc', 'banner-action-input'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateSimulatorPreview);
+        });
+
+        async function saveBanner(e) {
+            e.preventDefault();
+            const btn = document.getElementById('banner-save-btn');
+            const btnText = document.getElementById('banner-btn-text');
+            btn.disabled = true;
+            btnText.innerText = 'جاري الحفظ والمعالجة...';
+
+            try {
+                const title = document.getElementById('banner-title').value.trim();
+                const desc = document.getElementById('banner-desc').value.trim();
+                const isActive = document.getElementById('banner-active').value === 'true';
+                const actionInput = document.getElementById('banner-action-input').value.trim();
+                const actionType = document.getElementById('banner-action-type').value;
+                const expiryDate = document.getElementById('banner-expiry').value.trim();
+                const fileInput = document.getElementById('banner-image-file');
+
+                let finalImageUrl = currentBannerImageUrl || '';
+
+                // If user selected a new file
+                if (fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    
+                    // Attempt upload to Firebase Storage with a strict 4-second timeout
+                    let storageUploadSucceeded = false;
+                    try {
+                        const uploadPromise = (async () => {
+                            const storageRef = storage.ref('banners/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, ''));
+                            const snap = await storageRef.put(file);
+                            return await snap.ref.getDownloadURL();
+                        })();
+
+                        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage Timeout')), 4000));
+                        finalImageUrl = await Promise.race([uploadPromise, timeoutPromise]);
+                        storageUploadSucceeded = true;
+                    } catch (storageErr) {
+                        console.warn('Storage upload bypassed, using direct compressed Base64:', storageErr.message);
+                        // Fallback to high-efficiency compressed Base64 data URL
+                        if (selectedBannerFileBase64) {
+                            finalImageUrl = selectedBannerFileBase64;
+                        } else {
+                            finalImageUrl = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (re) => {
+                                    compressImage(re.target.result, 1080, 0.82, resolve);
+                                };
+                                reader.readAsDataURL(file);
+                            });
+                        }
+                    }
+                } else if (selectedBannerFileBase64) {
+                    finalImageUrl = selectedBannerFileBase64;
+                }
+
+                // Construct banner payload
+                const bannerObj = {
+                    bannerId: 'sponsor_01',
+                    title: title,
+                    description: desc,
+                    isActive: isActive,
+                    actionType: actionType,
+                    actionValue: actionInput,
+                    actionLink: actionInput,
+                    expiryDate: expiryDate,
+                    imagePath: finalImageUrl
+                };
+
+                // Save directly to Firebase Realtime Database
+                await rtdb.ref('sponsor_banner').set(bannerObj);
+
+                currentBannerImageUrl = finalImageUrl;
+                selectedBannerFileBase64 = null;
+                showToast('✅ تم حفظ الإعلان الرئيسي بنجاح وتحديثه في التطبيق!', 'success');
+            } catch (err) {
+                console.error('Error saving banner:', err);
+                showToast('❌ حدث خطأ أثناء الحفظ: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'حفظ الإعلان الرئيسي';
+            }
+        }
+
+        async function saveStaticBanner(e) {
             e.preventDefault();
             const btn = document.getElementById('static-save-btn');
             btn.disabled = true;
             btn.innerText = 'جاري الحفظ...';
 
-            const file = document.getElementById('static-banner-file').files[0];
-            const link = document.getElementById('static-banner-link').value;
+            try {
+                const file = document.getElementById('static-banner-file').files[0];
+                const link = document.getElementById('static-banner-link').value.trim();
+                let imageUrl = null;
 
-            const saveToDatabase = (imageUrl) => {
+                if (file) {
+                    try {
+                        const storageRef = storage.ref('banners/static_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, ''));
+                        const snap = await storageRef.put(file);
+                        imageUrl = await snap.ref.getDownloadURL();
+                    } catch (storageErr) {
+                        imageUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (re) => compressImage(re.target.result, 1080, 0.82, resolve);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                }
+
                 const bannerObj = { actionLink: link };
                 if (imageUrl) bannerObj.imagePath = imageUrl;
                 
-                rtdb.ref('static_banner').update(bannerObj)
-                    .then(() => {
-                        showToast('تم حفظ البانر بنجاح!');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ البانر';
-                    })
-                    .catch(err => {
-                        showToast('خطأ: ' + err.message, 'error');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ البانر';
-                    });
-            };
-
-            if (file) {
-                const storageRef = storage.ref('banners/static_' + Date.now() + '_' + file.name);
-                storageRef.put(file)
-                    .then(snapshot => snapshot.ref.getDownloadURL())
-                    .then(url => saveToDatabase(url))
-                    .catch(err => {
-                        showToast('خطأ في رفع الصورة: ' + err.message, 'error');
-                        btn.disabled = false;
-                        btn.innerText = 'حفظ البانر';
-                    });
-            } else {
-                saveToDatabase(null);
+                await rtdb.ref('static_banner').update(bannerObj);
+                showToast('تم حفظ بانر البحث بنجاح!');
+            } catch (err) {
+                showToast('خطأ: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'حفظ البانر';
             }
         }
     </script>

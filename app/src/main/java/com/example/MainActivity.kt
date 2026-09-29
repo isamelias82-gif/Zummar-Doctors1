@@ -261,6 +261,7 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                         doctors = filteredDoctors,
                         sponsorBanner = sponsorBanner,
                         staticBanner = viewModel.staticBanner.collectAsStateWithLifecycle().value,
+                        appSettings = appSettings,
                         searchQuery = searchQuery,
                         selectedDay = selectedDay,
                         selectedSpecialty = selectedSpecialty,
@@ -273,13 +274,15 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
 
                 AppTab.PHARMACIES -> {
                     PharmaciesScreen(
-                        pharmacies = pharmacies
+                        pharmacies = pharmacies,
+                        appSettings = appSettings
                     )
                 }
 
                 AppTab.LABORATORIES -> {
                     LaboratoriesScreen(
-                        laboratories = laboratories
+                        laboratories = laboratories,
+                        appSettings = appSettings
                     )
                 }
             }

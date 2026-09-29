@@ -108,18 +108,19 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = AppSettings()
         )
 
-    private val _sponsorBanner = MutableStateFlow(SponsorBanner.defaultBanner)
-    val sponsorBanner: StateFlow<SponsorBanner> = _sponsorBanner
+    val sponsorBanner: StateFlow<SponsorBanner> = (repository?.getSponsorBannerFlow() ?: flowOf(SponsorBanner.defaultBanner))
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = repository?.getSponsorBanner() ?: SponsorBanner.defaultBanner
+        )
 
     private val _staticBanner = MutableStateFlow(StaticBanner())
     val staticBanner: StateFlow<StaticBanner> = _staticBanner
 
     init {
         try {
-            repository?.let { repo ->
-                _sponsorBanner.value = repo.getSponsorBanner()
-                repo.reconnectRealtime()
-            }
+            repository?.reconnectRealtime()
             // Add Static Banner Listener
             com.google.firebase.database.FirebaseDatabase.getInstance()
                 .getReference("static_banner")

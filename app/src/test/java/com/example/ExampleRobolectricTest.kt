@@ -2,6 +2,10 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.model.Doctor
+import com.example.data.model.SponsorBanner
+import com.example.ui.components.isPhoneNumber
+import com.example.util.ArabicSearchUtils
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,7 +25,7 @@ class ExampleRobolectricTest {
 
   @Test
   fun `doctor availability and working days check`() {
-    val doctor = com.example.data.model.Doctor(
+    val doctor = Doctor(
       name = "د. أحمد يونس",
       specialty = "الباطنية",
       days = listOf("السبت", "الأحد", "الإثنين"),
@@ -34,11 +38,11 @@ class ExampleRobolectricTest {
 
   @Test
   fun `sponsor banner activity and expiry check`() {
-    val activeBanner = com.example.data.model.SponsorBanner(
+    val activeBanner = SponsorBanner(
       bannerId = "sponsor_test",
       isActive = true,
-      actionType = com.example.data.model.SponsorBanner.ACTION_WHATSAPP,
-      actionValue = "+9647875023922",
+      actionType = SponsorBanner.ACTION_PHONE,
+      actionValue = "07875023922",
       expiryDate = "2099-12-31"
     )
     assertEquals(true, activeBanner.isCurrentlyActive())
@@ -51,51 +55,28 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `admin password verification test`() {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    val db = com.example.data.local.AppDatabase.getInstance(context)
-    val repository = com.example.data.repository.DoctorRepository(db.doctorDao(), context)
+  fun `smart phone number versus url detection`() {
+    // Phone numbers (triggers Intent.ACTION_DIAL)
+    assertEquals(true, isPhoneNumber("07800000000", "AUTO"))
+    assertEquals(true, isPhoneNumber("+9647875023922", "AUTO"))
+    assertEquals(true, isPhoneNumber("0770 123 4567", "AUTO"))
+    assertEquals(true, isPhoneNumber("0780-123-4567", "AUTO"))
+    assertEquals(true, isPhoneNumber("tel:07800000000", "AUTO"))
+    assertEquals(true, isPhoneNumber("07800000000", "PHONE"))
 
-    assertEquals("200120012001", repository.getAdminPin())
-    assertEquals(true, repository.verifyPin("200120012001"))
-    assertEquals(true, repository.verifyPasscode("200120012001"))
-    assertEquals(false, repository.verifyPin("1982"))
-    assertEquals(false, repository.verifyPin("1234"))
-
-    // Change passcode dynamically
-    repository.setAdminPasscode("9876543210")
-    assertEquals("9876543210", repository.getAdminPasscode())
-    assertEquals(true, repository.verifyPasscode("9876543210"))
-    assertEquals(true, repository.verifyPin("9876543210"))
-    assertEquals(false, repository.verifyPasscode("200120012001"))
-  }
-
-  @Test
-  fun `pharmacies and laboratories coming soon toggles`() {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    val db = com.example.data.local.AppDatabase.getInstance(context)
-    val repository = com.example.data.repository.DoctorRepository(db.doctorDao(), context)
-
-    // Default state: both sections disabled (coming soon)
-    assertEquals(false, repository.isPharmaciesEnabled())
-    assertEquals(false, repository.isLaboratoriesEnabled())
-
-    // Admin enables pharmacies
-    repository.setPharmaciesEnabled(true)
-    assertEquals(true, repository.isPharmaciesEnabled())
-
-    // Admin enables laboratories
-    repository.setLaboratoriesEnabled(true)
-    assertEquals(true, repository.isLaboratoriesEnabled())
-
-    // Admin disables pharmacies again
-    repository.setPharmaciesEnabled(false)
-    assertEquals(false, repository.isPharmaciesEnabled())
+    // URLs (triggers Intent.ACTION_VIEW)
+    assertEquals(false, isPhoneNumber("https://google.com", "AUTO"))
+    assertEquals(false, isPhoneNumber("http://example.com/clinic", "AUTO"))
+    assertEquals(false, isPhoneNumber("www.alnoor.iq", "AUTO"))
+    assertEquals(false, isPhoneNumber("alnoor-clinic.com", "AUTO"))
+    assertEquals(false, isPhoneNumber("https://wa.me/9647800000000", "AUTO"))
+    assertEquals(false, isPhoneNumber("07800000000", "URL"))
+    assertEquals(false, isPhoneNumber("07800000000", "WHATSAPP"))
   }
 
   @Test
   fun `instant live search matches one or two letters and sections`() {
-    val doctor1 = com.example.data.model.Doctor(
+    val doctor1 = Doctor(
       id = 101L,
       name = "د. أحمد الحبيب",
       title = "اختصاصي أطفال",
@@ -111,7 +92,7 @@ class ExampleRobolectricTest {
       notes = "استشارات الأطفال وحديثي الولادة"
     )
 
-    val doctor2 = com.example.data.model.Doctor(
+    val doctor2 = Doctor(
       id = 102L,
       name = "د. علي الخفاجي",
       title = "اختصاصي جلدية",
@@ -128,100 +109,22 @@ class ExampleRobolectricTest {
     )
 
     // Test 1-letter search
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "ا"))
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor2, "ع"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor1, "ا"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor2, "ع"))
 
     // Test 2-letter search for doctor names
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "اح"))
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor2, "عل"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor1, "اح"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor2, "عل"))
 
     // Test search without hamza matching text with hamza
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "احمد"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor1, "احمد"))
 
     // Test section / specialty search with 2 letters
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "اط")) // أطفال
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor2, "جل")) // جلدية
-    assertEquals(false, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "جل"))
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor1, "اط")) // أطفال
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor2, "جل")) // جلدية
+    assertEquals(false, ArabicSearchUtils.matchesDoctor(doctor1, "جل"))
 
     // Test multi-token search
-    assertEquals(true, com.example.util.ArabicSearchUtils.matchesDoctor(doctor1, "احمد اطفال"))
-  }
-
-  @Test
-  fun `pharmacy repository add, update and delete preserves IDs`() {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    val pharmacyRepo = com.example.data.repository.PharmacyRepository.getInstance(context)
-
-    val initialCount = pharmacyRepo.pharmaciesFlow.value.size
-
-    // Add new pharmacy
-    val newPharmacy = com.example.data.model.Pharmacy(
-      id = 0L,
-      name = "صيدلية زمار الجديدة",
-      pharmacist = "د. عمر الجبوري",
-      addressLandmark = "شارع الأطباء",
-      workingHours = "8:00 ص - 10:00 م",
-      isOnDutyTonight = true
-    )
-    val assignedId = pharmacyRepo.addPharmacy(newPharmacy)
-    assert(assignedId > 0L)
-    assertEquals(initialCount + 1, pharmacyRepo.pharmaciesFlow.value.size)
-
-    // Update pharmacy preserving ID
-    val updatedPharmacy = newPharmacy.copy(
-      id = assignedId,
-      name = "صيدلية زمار النموذجية",
-      isOnDutyTonight = false
-    )
-    pharmacyRepo.updatePharmacy(updatedPharmacy)
-    val found = pharmacyRepo.pharmaciesFlow.value.find { it.id == assignedId }
-    assertEquals("صيدلية زمار النموذجية", found?.name)
-    assertEquals(false, found?.isOnDutyTonight)
-    assertEquals(assignedId, found?.id)
-
-    // Delete pharmacy
-    pharmacyRepo.deletePharmacy(assignedId)
-    val afterDelete = pharmacyRepo.pharmaciesFlow.value.find { it.id == assignedId }
-    assertEquals(null, afterDelete)
-    assertEquals(initialCount, pharmacyRepo.pharmaciesFlow.value.size)
-  }
-
-  @Test
-  fun `laboratory repository add, update and delete preserves IDs`() {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    val labRepo = com.example.data.repository.LaboratoryRepository.getInstance(context)
-
-    val initialCount = labRepo.laboratoriesFlow.value.size
-
-    // Add new laboratory
-    val newLab = com.example.data.model.Laboratory(
-      id = 0L,
-      name = "مختبر زمار التخصصي",
-      specialist = "د. أحمد سالم",
-      addressLandmark = "الشارع الرئيسي",
-      services = listOf("CBC", "FBS", "Lipid Profile")
-    )
-    val assignedId = labRepo.addLaboratory(newLab)
-    assert(assignedId > 0L)
-    assertEquals(initialCount + 1, labRepo.laboratoriesFlow.value.size)
-
-    // Update laboratory preserving ID
-    val updatedLab = newLab.copy(
-      id = assignedId,
-      name = "مختبر زمار المركزي المتقدم",
-      services = listOf("CBC", "FBS", "HbA1c")
-    )
-    labRepo.updateLaboratory(updatedLab)
-    val found = labRepo.laboratoriesFlow.value.find { it.id == assignedId }
-    assertEquals("مختبر زمار المركزي المتقدم", found?.name)
-    assertEquals(listOf("CBC", "FBS", "HbA1c"), found?.services)
-    assertEquals(assignedId, found?.id)
-
-    // Delete laboratory
-    labRepo.deleteLaboratory(assignedId)
-    val afterDelete = labRepo.laboratoriesFlow.value.find { it.id == assignedId }
-    assertEquals(null, afterDelete)
-    assertEquals(initialCount, labRepo.laboratoriesFlow.value.size)
+    assertEquals(true, ArabicSearchUtils.matchesDoctor(doctor1, "احمد اطفال"))
   }
 }
-

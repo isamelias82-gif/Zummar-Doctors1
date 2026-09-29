@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
+import com.example.data.model.SponsorBanner
 import com.google.firebase.database.DataSnapshot
 
 /**
@@ -411,5 +412,132 @@ object SafeFirebaseParser {
             Log.e(TAG, "Error parsing laboratories from JSON: ${e.message}")
         }
         return list
+    }
+
+    fun parseSponsorBanner(snapshot: DataSnapshot?): SponsorBanner? {
+        if (snapshot == null || !snapshot.exists()) return null
+        return try {
+            val map = snapshot.value as? Map<*, *> ?: return null
+            parseSingleSponsorBanner(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing sponsor banner snapshot: ${e.message}")
+            null
+        }
+    }
+
+    fun parseSingleSponsorBanner(map: Map<*, *>): SponsorBanner {
+        val bannerId = parseString(map["bannerId"]).ifBlank { parseString(map["banner_id"]).ifBlank { "sponsor_01" } }
+        val isActive = parseBoolean(map["isActive"] ?: map["is_active"] ?: true)
+        val imagePath = parseString(map["imagePath"] ?: map["image_path"])
+        val actionType = parseString(map["actionType"] ?: map["action_type"]).ifBlank { "PHONE" }
+        val actionValue = parseString(map["actionValue"] ?: map["action_value"])
+        val actionLink = parseString(map["actionLink"] ?: map["action_link"])
+        val expiryDate = parseString(map["expiryDate"] ?: map["expiry_date"])
+        val title = parseString(map["title"]).ifBlank { "مجمع النور الطبي التخصصي - زمار" }
+        val description = parseString(map["description"])
+
+        return SponsorBanner(
+            bannerId = bannerId,
+            isActive = isActive,
+            imagePath = imagePath,
+            actionType = actionType,
+            actionValue = actionValue,
+            expiryDate = expiryDate,
+            title = title,
+            description = description,
+            actionLink = actionLink
+        )
+    }
+
+    fun parseSponsorBannerFromJson(jsonString: String): SponsorBanner? {
+        return try {
+            if (jsonString.isBlank() || jsonString == "null") return null
+            val obj = org.json.JSONObject(jsonString)
+            val map = jsonObjectToMap(obj)
+            parseSingleSponsorBanner(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing sponsor banner from JSON: ${e.message}")
+            null
+        }
+    }
+
+    fun parseActionButtonConfig(raw: Any?, defaultInput: String = "+9647875023922"): com.example.data.model.ActionButtonConfig {
+        if (raw == null) return com.example.data.model.ActionButtonConfig(isActive = true, actionInput = defaultInput, actionType = "AUTO")
+        if (raw is Map<*, *>) {
+            val isActive = parseBoolean(raw["isActive"] ?: raw["is_active"] ?: raw["active"] ?: true)
+            val actionInput = parseString(raw["actionInput"] ?: raw["action_input"] ?: raw["actionValue"] ?: raw["action_value"] ?: raw["phone"] ?: raw["url"] ?: raw["link"]).ifBlank { defaultInput }
+            val actionType = parseString(raw["actionType"] ?: raw["action_type"]).ifBlank { "AUTO" }
+            return com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = actionInput, actionType = actionType)
+        }
+        return com.example.data.model.ActionButtonConfig(isActive = true, actionInput = parseString(raw).ifBlank { defaultInput }, actionType = "AUTO")
+    }
+
+    fun parseAppSettings(snapshot: DataSnapshot?): com.example.data.model.AppSettings {
+        if (snapshot == null || !snapshot.exists()) return com.example.data.model.AppSettings()
+        return try {
+            val map = snapshot.value as? Map<*, *> ?: return com.example.data.model.AppSettings()
+            parseSingleAppSettings(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing AppSettings snapshot: ${e.message}")
+            com.example.data.model.AppSettings()
+        }
+    }
+
+    fun parseSingleAppSettings(map: Map<*, *>): com.example.data.model.AppSettings {
+        val pharmEnabled = parseBoolean(map["pharmacies_enabled"] ?: map["pharmaciesEnabled"] ?: true)
+        val labEnabled = parseBoolean(map["laboratories_enabled"] ?: map["laboratoriesEnabled"] ?: true)
+
+        // FAB Button
+        val fabRaw = map["fabButton"] ?: map["fab_button"] ?: map["fab"]
+        val fabConfig = if (fabRaw != null) {
+            parseActionButtonConfig(fabRaw, "+9647875023922")
+        } else {
+            val isActive = parseBoolean(map["fabActive"] ?: map["fab_active"] ?: true)
+            val action = parseString(map["fabAction"] ?: map["fab_action"] ?: map["fabPhone"] ?: map["fab_phone"]).ifBlank { "+9647875023922" }
+            val type = parseString(map["fabActionType"] ?: map["fab_action_type"]).ifBlank { "AUTO" }
+            com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
+        }
+
+        // Report Problem
+        val reportRaw = map["reportProblem"] ?: map["report_problem"] ?: map["report"]
+        val reportConfig = if (reportRaw != null) {
+            parseActionButtonConfig(reportRaw, "+9647875023922")
+        } else {
+            val isActive = parseBoolean(map["reportActive"] ?: map["report_active"] ?: true)
+            val action = parseString(map["reportAction"] ?: map["report_action"] ?: map["reportPhone"] ?: map["report_link"]).ifBlank { "+9647875023922" }
+            val type = parseString(map["reportActionType"] ?: map["report_action_type"]).ifBlank { "AUTO" }
+            com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
+        }
+
+        // Contact Us
+        val contactRaw = map["contactUs"] ?: map["contact_us"] ?: map["contact"]
+        val contactConfig = if (contactRaw != null) {
+            parseActionButtonConfig(contactRaw, "+9647875023922")
+        } else {
+            val isActive = parseBoolean(map["contactActive"] ?: map["contact_active"] ?: true)
+            val action = parseString(map["contactAction"] ?: map["contact_action"] ?: map["contactPhone"] ?: map["contact_link"]).ifBlank { "+9647875023922" }
+            val type = parseString(map["contactActionType"] ?: map["contact_action_type"]).ifBlank { "AUTO" }
+            com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
+        }
+
+        return com.example.data.model.AppSettings(
+            pharmaciesEnabled = pharmEnabled,
+            laboratoriesEnabled = labEnabled,
+            fabButton = fabConfig,
+            reportProblem = reportConfig,
+            contactUs = contactConfig
+        )
+    }
+
+    fun parseAppSettingsFromJson(jsonString: String): com.example.data.model.AppSettings? {
+        return try {
+            if (jsonString.isBlank() || jsonString == "null") return null
+            val obj = org.json.JSONObject(jsonString)
+            val map = jsonObjectToMap(obj)
+            parseSingleAppSettings(map)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing app settings from JSON: ${e.message}")
+            null
+        }
     }
 }

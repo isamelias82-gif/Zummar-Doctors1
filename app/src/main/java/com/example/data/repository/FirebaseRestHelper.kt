@@ -5,6 +5,7 @@ import com.example.data.model.AppSettings
 import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
+import com.example.data.model.SponsorBanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -61,6 +62,11 @@ object FirebaseRestHelper {
     suspend fun fetchLaboratories(): List<Laboratory>? {
         val json = getJson("laboratories") ?: return null
         return SafeFirebaseParser.parseLaboratoriesFromJson(json)
+    }
+
+    suspend fun fetchSponsorBanner(): SponsorBanner? {
+        val json = getJson("sponsor_banner") ?: return null
+        return SafeFirebaseParser.parseSponsorBannerFromJson(json)
     }
 
     suspend fun fetchAppSettings(): AppSettings? {

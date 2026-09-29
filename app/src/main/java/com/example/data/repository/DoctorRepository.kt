@@ -112,20 +112,8 @@ class DoctorRepository(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
-                    val map = snapshot.value as? Map<*, *>
-                    val pharmEnabled = when (val v = map?.get("pharmacies_enabled")) {
-                        is Boolean -> v
-                        is Number -> v.toInt() != 0
-                        is String -> v.lowercase() != "false"
-                        else -> true
-                    }
-                    val labEnabled = when (val v = map?.get("laboratories_enabled")) {
-                        is Boolean -> v
-                        is Number -> v.toInt() != 0
-                        is String -> v.lowercase() != "false"
-                        else -> true
-                    }
-                    trySend(AppSettings(pharmaciesEnabled = pharmEnabled, laboratoriesEnabled = labEnabled))
+                    val settings = SafeFirebaseParser.parseAppSettings(snapshot)
+                    trySend(settings)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing app_settings: ${e.message}")
                     trySend(AppSettings())
@@ -271,6 +259,15 @@ class DoctorRepository(
     }
 
     // Sponsor Banner Management
+    private val sponsorBannerRef: DatabaseReference? by lazy {
+        try {
+            firebaseDatabase?.getReference("sponsor_banner")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting sponsorBannerRef: ${e.message}")
+            null
+        }
+    }
+
     fun getSponsorBanner(): SponsorBanner {
         val bannerJson = prefs.getString("sponsor_banner_json", null)
         if (bannerJson == null) {
@@ -282,13 +279,92 @@ class DoctorRepository(
                 bannerId = obj.optString("banner_id", "sponsor_01"),
                 isActive = obj.optBoolean("is_active", true),
                 imagePath = obj.optString("image_path", ""),
-                actionType = obj.optString("action_type", "WHATSAPP"),
-                actionValue = obj.optString("action_value", "+9647875023922"),
+                actionType = obj.optString("action_type", "PHONE"),
+                actionValue = obj.optString("action_value", "07875023922"),
                 expiryDate = obj.optString("expiry_date", "2026-12-31"),
-                title = obj.optString("title", "مجمع النور الطبي التخصصي - زمار")
+                title = obj.optString("title", "مجمع النور الطبي التخصصي - زمار"),
+                description = obj.optString("description", "أوقات الدوام وخدمات العيادات الاستشارية"),
+                actionLink = obj.optString("action_link", "07875023922")
             )
         } catch (e: Exception) {
             SponsorBanner.defaultBanner
+        }
+    }
+
+    fun saveSponsorBanner(banner: SponsorBanner) {
+        try {
+            val obj = JSONObject().apply {
+                put("banner_id", banner.bannerId)
+                put("is_active", banner.isActive)
+                put("image_path", banner.imagePath)
+                put("action_type", banner.actionType)
+                put("action_value", banner.actionValue)
+                put("expiry_date", banner.expiryDate)
+                put("title", banner.title)
+                put("description", banner.description)
+                put("action_link", banner.actionLink)
+            }
+            prefs.edit().putString("sponsor_banner_json", obj.toString()).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving sponsor banner: ${e.message}")
+        }
+    }
+
+    fun getSponsorBannerFlow(): Flow<SponsorBanner> = callbackFlow {
+        // 1. Emit cached sponsor banner first
+        trySend(getSponsorBanner())
+
+        // 2. Direct HTTPS REST fetch and periodic fallback poll
+        val restJob = launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    val banner = FirebaseRestHelper.fetchSponsorBanner()
+                    if (banner != null) {
+                        trySend(banner)
+                        saveSponsorBanner(banner)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Sponsor banner REST poll error: ${e.message}")
+                }
+                delay(8000)
+            }
+        }
+
+        val ref = sponsorBannerRef
+        if (ref == null) {
+            awaitClose { restJob.cancel() }
+            return@callbackFlow
+        }
+
+        try {
+            ref.keepSynced(true)
+        } catch (e: Exception) {
+            Log.w(TAG, "keepSynced error on sponsorBannerRef: ${e.message}")
+        }
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val banner = SafeFirebaseParser.parseSponsorBanner(snapshot)
+                    if (banner != null) {
+                        trySend(banner)
+                        saveSponsorBanner(banner)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in sponsor banner listener: ${e.message}")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "Sponsor banner listener cancelled: ${error.message}")
+            }
+        }
+
+        ref.addValueEventListener(listener)
+
+        awaitClose {
+            restJob.cancel()
+            ref.removeEventListener(listener)
         }
     }
 

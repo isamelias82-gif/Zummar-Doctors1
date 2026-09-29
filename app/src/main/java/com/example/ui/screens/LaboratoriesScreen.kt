@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.model.AppSettings
 import com.example.data.model.Laboratory
 import com.example.ui.components.WhatsAppFab
 import com.example.ui.components.dialPhoneNumber
@@ -65,6 +66,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LaboratoriesScreen(
     laboratories: List<Laboratory>,
+    appSettings: AppSettings = AppSettings(),
     onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -300,7 +302,10 @@ fun LaboratoriesScreen(
                 .align(Alignment.BottomStart)
                 .padding(start = 16.dp, bottom = 16.dp)
         ) {
-            WhatsAppFab(customMessage = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص قسم المختبرات الطبية...")
+            WhatsAppFab(
+                config = appSettings.fabButton,
+                customMessage = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص قسم المختبرات الطبية..."
+            )
         }
     }
 }
