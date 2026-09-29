@@ -9,7 +9,8 @@ data class SponsorBanner(
     val actionType: String = "WHATSAPP", // "PHONE", "WHATSAPP", "URL"
     val actionValue: String = "+9647875023922",
     val expiryDate: String = "",      // format: "YYYY-MM-DD" e.g. "2026-12-31"
-    val title: String = "مجمع النور الطبي التخصصي - زمار"
+    val title: String = "مجمع النور الطبي التخصصي - زمار",
+    val description: String = ""
 ) {
     /**
      * Determines whether the banner is currently active and within expiry date.
@@ -47,7 +48,8 @@ data class SponsorBanner(
             actionType = ACTION_WHATSAPP,
             actionValue = "+9647875023922",
             expiryDate = "2026-12-31",
-            title = "مجمع النور الطبي التخصصي - زمار"
+            title = "مجمع النور الطبي التخصصي - زمار",
+            description = ""
         )
     }
 }

@@ -146,6 +146,32 @@ fun TopSponsorshipBanner(
             // Action Indicator Badge (Bottom-End)
             Surface(
                 shape = RoundedCornerShape(topStart = 8.dp),
+                color = Color.Black.copy(alpha = 0.6f),
+                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+            ) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = banner.title,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    if (banner.description.isNotBlank()) {
+                        Text(
+                            text = banner.description,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(topStart = 8.dp),
                 color = when (banner.actionType) {
                     SponsorBanner.ACTION_WHATSAPP -> Color(0xFF25D366)
                     SponsorBanner.ACTION_PHONE -> Color(0xFF006D77)
