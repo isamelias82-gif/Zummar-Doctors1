@@ -379,8 +379,22 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="doc-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="07800000000, 07700000000">
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                        <span>أرقام الهواتف (رقم الاتصال والحجز) *</span>
+                        <button type="button" onclick="addPhoneInput('doc-phones-container', 'doc-phone-item', 'focus:ring-indigo-500')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg transition">
+                            <i class="fa-solid fa-plus text-[10px]"></i> إضافة رقم آخر
+                        </button>
+                    </label>
+                    <div id="doc-phones-container" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                                    <i class="fa-solid fa-phone"></i>
+                                </span>
+                                <input type="tel" name="doc-phone-item" required dir="ltr" class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-right" placeholder="07800000000">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -461,6 +475,21 @@
                     <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات</label>
                     <textarea id="doc-notes" rows="2" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ملاحظات إضافية..."></textarea>
                 </div>
+                <!-- Consultation Fee Section -->
+                <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="doc-show-fee" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-money-bill-wave text-indigo-600"></i> تفعيل عرض كشفية الطبيب في التطبيق
+                            </span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">سعر الكشفية (مثال: 15,000 دينار)</label>
+                        <input type="text" id="doc-fee" class="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="مثال: 15,000 دينار">
+                    </div>
+                </div>
                 <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-100">
                     <button type="button" onclick="closeModal('doctor-modal')" class="px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold transition">إلغاء</button>
                     <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition">حفظ الطبيب</button>
@@ -487,8 +516,22 @@
                     <input type="text" id="pharm-pharmacist" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: الصيدلاني أحمد">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="pharm-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="07800000000">
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                        <span>أرقام الهواتف *</span>
+                        <button type="button" onclick="addPhoneInput('pharm-phones-container', 'pharm-phone-item', 'focus:ring-emerald-500')" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg transition">
+                            <i class="fa-solid fa-plus text-[10px]"></i> إضافة رقم آخر
+                        </button>
+                    </label>
+                    <div id="pharm-phones-container" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                                    <i class="fa-solid fa-phone"></i>
+                                </span>
+                                <input type="tel" name="pharm-phone-item" required dir="ltr" class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-right" placeholder="07800000000">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1050,6 +1093,8 @@
                 document.getElementById('doc-start-ampm').value = 'مساءً';
                 document.getElementById('doc-end-hour').value = '8';
                 document.getElementById('doc-end-ampm').value = 'مساءً';
+                document.getElementById('doc-show-fee').checked = false;
+                document.getElementById('doc-fee').value = '';
                 document.querySelectorAll('input[name="doc-day"]').forEach(cb => {
                     cb.checked = (cb.value !== 'الجمعة');
                 });
@@ -1064,6 +1109,8 @@
                     document.getElementById('doc-phones').value = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '');
                     document.getElementById('doc-address').value = doc.addressLandmark || '';
                     document.getElementById('doc-notes').value = doc.notes || '';
+                    document.getElementById('doc-show-fee').checked = !!doc.showConsultationFee;
+                    document.getElementById('doc-fee').value = doc.consultationFee || '';
 
                     const startH = (doc.startHour !== undefined && doc.startHour !== null) ? doc.startHour : 16;
                     const endH = (doc.endHour !== undefined && doc.endHour !== null) ? doc.endHour : 20;
@@ -1122,6 +1169,9 @@
             const phonesRaw = document.getElementById('doc-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
+            const showConsultationFee = document.getElementById('doc-show-fee').checked;
+            const consultationFee = document.getElementById('doc-fee').value.trim();
+
             const doctorObj = {
                 name: document.getElementById('doc-name').value,
                 specialty: specialtyVal,
@@ -1136,6 +1186,8 @@
                 endMinute: 0,
                 addressLandmark: document.getElementById('doc-address').value,
                 notes: document.getElementById('doc-notes').value,
+                showConsultationFee: showConsultationFee,
+                consultationFee: consultationFee,
                 days: checkedDays,
                 daysString: daysString,
                 isEmergencyAvailable: false,

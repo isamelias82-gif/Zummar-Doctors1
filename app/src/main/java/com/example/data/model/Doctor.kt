@@ -22,6 +22,8 @@ data class Doctor(
     val addressLandmark: String = "",
     val phoneNumbers: List<String> = emptyList(),
     val notes: String = "",
+    val showConsultationFee: Boolean = false,
+    val consultationFee: String = "",
     val isEmergencyAvailable: Boolean = false,
     val orderIndex: Int = 0
 ) {

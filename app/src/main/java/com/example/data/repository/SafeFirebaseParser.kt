@@ -188,6 +188,8 @@ object SafeFirebaseParser {
             val addressLandmark = parseString(map["addressLandmark"])
             val phoneNumbers = parseStringList(map["phoneNumbers"])
             val notes = parseString(map["notes"])
+            val showConsultationFee = parseBoolean(map["showConsultationFee"])
+            val consultationFee = parseString(map["consultationFee"])
             val isEmergencyAvailable = parseBoolean(map["isEmergencyAvailable"])
             val orderIndex = parseInt(map["orderIndex"], 0)
 
@@ -207,6 +209,8 @@ object SafeFirebaseParser {
                 addressLandmark = addressLandmark,
                 phoneNumbers = phoneNumbers,
                 notes = notes,
+                showConsultationFee = showConsultationFee,
+                consultationFee = consultationFee,
                 isEmergencyAvailable = isEmergencyAvailable,
                 orderIndex = orderIndex
             )

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
@@ -298,6 +299,36 @@ fun DoctorCard(
                         style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary),
                         modifier = Modifier.padding(8.dp)
                     )
+                }
+            }
+
+            // Consultation Fee if enabled by admin
+            if (doctor.showConsultationFee && doctor.consultationFee.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Payments,
+                            contentDescription = null,
+                            tint = TealPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "سعر الكشفية: ${doctor.consultationFee}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        )
+                    }
                 }
             }
 
