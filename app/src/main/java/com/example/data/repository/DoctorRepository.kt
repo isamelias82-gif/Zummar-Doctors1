@@ -78,18 +78,10 @@ class DoctorRepository(
         }
     }
 
-    /**
-     * Live Kotlin callbackFlow streaming section toggle feature flags (/app_settings) from Firebase.
-     */
     fun getAppSettingsFlow(): Flow<AppSettings> = callbackFlow {
-        val initialCached = AppSettings(
-            pharmaciesEnabled = prefs.getBoolean("pharmacies_enabled", true),
-            laboratoriesEnabled = prefs.getBoolean("laboratories_enabled", true)
-        )
-        trySend(initialCached)
-
         val ref = appSettingsRef
         if (ref == null) {
+            trySend(AppSettings())
             awaitClose { }
             return@callbackFlow
         }
@@ -103,39 +95,28 @@ class DoctorRepository(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
-                    val pharmChild = snapshot.child("pharmacies_enabled")
-                    val labChild = snapshot.child("laboratories_enabled")
-
-                    val pharmaciesEnabled = if (pharmChild.exists()) {
-                        SafeFirebaseParser.parseBoolean(pharmChild.value)
-                    } else {
-                        true
+                    val map = snapshot.value as? Map<*, *>
+                    val pharmEnabled = when (val v = map?.get("pharmacies_enabled")) {
+                        is Boolean -> v
+                        is Number -> v.toInt() != 0
+                        is String -> v.lowercase() != "false"
+                        else -> true
                     }
-
-                    val laboratoriesEnabled = if (labChild.exists()) {
-                        SafeFirebaseParser.parseBoolean(labChild.value)
-                    } else {
-                        true
+                    val labEnabled = when (val v = map?.get("laboratories_enabled")) {
+                        is Boolean -> v
+                        is Number -> v.toInt() != 0
+                        is String -> v.lowercase() != "false"
+                        else -> true
                     }
-
-                    prefs.edit()
-                        .putBoolean("pharmacies_enabled", pharmaciesEnabled)
-                        .putBoolean("laboratories_enabled", laboratoriesEnabled)
-                        .apply()
-
-                    trySend(
-                        AppSettings(
-                            pharmaciesEnabled = pharmaciesEnabled,
-                            laboratoriesEnabled = laboratoriesEnabled
-                        )
-                    )
+                    trySend(AppSettings(pharmaciesEnabled = pharmEnabled, laboratoriesEnabled = labEnabled))
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing app_settings: ${e.message}")
+                    trySend(AppSettings())
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.w(TAG, "AppSettings listener cancelled: ${error.message}")
+                Log.w(TAG, "appSettings listener cancelled: ${error.message}")
             }
         }
 
@@ -145,26 +126,16 @@ class DoctorRepository(
         }
     }
 
-    fun isPharmaciesEnabled(): Boolean = prefs.getBoolean("pharmacies_enabled", true)
-    fun isLaboratoriesEnabled(): Boolean = prefs.getBoolean("laboratories_enabled", true)
-
-    fun setPharmaciesEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("pharmacies_enabled", enabled).apply()
+    private val adminPasscodeRef: DatabaseReference? by lazy {
         try {
-            appSettingsRef?.child("pharmacies_enabled")?.setValue(enabled)
+            firebaseDatabase?.getReference("admin_passcode")
         } catch (e: Exception) {
-            Log.w(TAG, "Error setting pharmacies_enabled in remote: ${e.message}")
+            Log.e(TAG, "Error getting adminPasscodeRef: ${e.message}")
+            null
         }
     }
 
-    fun setLaboratoriesEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("laboratories_enabled", enabled).apply()
-        try {
-            appSettingsRef?.child("laboratories_enabled")?.setValue(enabled)
-        } catch (e: Exception) {
-            Log.w(TAG, "Error setting laboratories_enabled in remote: ${e.message}")
-        }
-    }
+    private var cachedAdminPasscode: String = "200120012001"
 
     init {
     }
