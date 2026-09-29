@@ -53,7 +53,9 @@ object SafeFirebaseParser {
             val addressLandmark = parseString(map["addressLandmark"])
             val phoneNumbers = parseStringList(map["phoneNumbers"])
             val onCallDays = parseString(map["onCallDays"])
-            val workingHours = parseString(map["workingHours"])
+            val startTime = parseString(map["startTime"]).ifBlank { "08:00 صباحاً" }
+            val endTime = parseString(map["endTime"]).ifBlank { "11:00 مساءً" }
+            val workingHours = parseString(map["workingHours"]).ifBlank { "من $startTime إلى $endTime" }
             val isOnDutyTonight = parseBoolean(map["isOnDutyTonight"])
             val notes = parseString(map["notes"])
 
@@ -64,6 +66,8 @@ object SafeFirebaseParser {
                 addressLandmark = addressLandmark,
                 phoneNumbers = phoneNumbers,
                 onCallDays = onCallDays,
+                startTime = startTime,
+                endTime = endTime,
                 workingHours = workingHours,
                 isOnDutyTonight = isOnDutyTonight,
                 notes = notes
@@ -112,7 +116,9 @@ object SafeFirebaseParser {
             val addressLandmark = parseString(map["addressLandmark"])
             val phoneNumbers = parseStringList(map["phoneNumbers"])
             val workingDays = parseString(map["workingDays"])
-            val workingHours = parseString(map["workingHours"])
+            val startTime = parseString(map["startTime"]).ifBlank { "07:00 صباحاً" }
+            val endTime = parseString(map["endTime"]).ifBlank { "09:00 مساءً" }
+            val workingHours = parseString(map["workingHours"]).ifBlank { "من $startTime إلى $endTime" }
             val services = parseStringList(map["services"])
             val notes = parseString(map["notes"])
 
@@ -123,6 +129,8 @@ object SafeFirebaseParser {
                 addressLandmark = addressLandmark,
                 phoneNumbers = phoneNumbers,
                 workingDays = workingDays,
+                startTime = startTime,
+                endTime = endTime,
                 workingHours = workingHours,
                 services = services,
                 notes = notes
@@ -174,7 +182,9 @@ object SafeFirebaseParser {
             val startMinute = parseInt(map["startMinute"], 0)
             val endHour = parseInt(map["endHour"], 20)
             val endMinute = parseInt(map["endMinute"], 0)
-            val workingHoursText = parseString(map["workingHoursText"])
+            val startTime = parseString(map["startTime"]).ifBlank { "04:00 مساءً" }
+            val endTime = parseString(map["endTime"]).ifBlank { "08:00 مساءً" }
+            val workingHoursText = parseString(map["workingHoursText"]).ifBlank { "من $startTime إلى $endTime" }
             val addressLandmark = parseString(map["addressLandmark"])
             val phoneNumbers = parseStringList(map["phoneNumbers"])
             val notes = parseString(map["notes"])
@@ -191,6 +201,8 @@ object SafeFirebaseParser {
                 startMinute = startMinute,
                 endHour = endHour,
                 endMinute = endMinute,
+                startTime = startTime,
+                endTime = endTime,
                 workingHoursText = workingHoursText,
                 addressLandmark = addressLandmark,
                 phoneNumbers = phoneNumbers,

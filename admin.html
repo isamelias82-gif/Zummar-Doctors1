@@ -387,17 +387,70 @@
                         <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
                             <i class="fa-regular fa-clock text-indigo-500"></i> وقت الدخول (بداية الدوام) *
                         </label>
-                        <select id="doc-start-hour" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm cursor-pointer shadow-sm">
-                            <option value="" disabled selected>-- اختر وقت الدخول --</option>
-                        </select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="doc-start-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                                <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <select id="doc-start-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً">صباحاً</option>
+                                <option value="مساءً" selected>مساءً</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
                             <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> وقت الخروج (نهاية الدوام) *
                         </label>
-                        <select id="doc-end-hour" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm cursor-pointer shadow-sm">
-                            <option value="" disabled selected>-- اختر وقت الخروج --</option>
-                        </select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="doc-end-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                                <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <select id="doc-end-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً">صباحاً</option>
+                                <option value="مساءً" selected>مساءً</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fa-regular fa-calendar-days text-indigo-500"></i> أيام الدوام (أيام التواجد) *
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="السبت" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>السبت</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الأحد" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الأحد</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الإثنين" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الإثنين</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الثلاثاء" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الثلاثاء</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الأربعاء" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الأربعاء</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الخميس" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الخميس</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 bg-white p-2 rounded-lg border border-gray-200 hover:bg-indigo-50 transition">
+                            <input type="checkbox" name="doc-day" value="الجمعة" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>الجمعة</span>
+                        </label>
                     </div>
                 </div>
                 <div>
@@ -437,9 +490,41 @@
                     <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
                     <input type="text" id="pharm-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="07800000000">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
-                    <input type="text" id="pharm-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="مثال: 8 صباحاً - 11 مساءً">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                            <i class="fa-regular fa-clock text-emerald-500"></i> وقت الدخول (بداية الدوام) *
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="pharm-start-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option>
+                                <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <select id="pharm-start-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً" selected>صباحاً</option>
+                                <option value="مساءً">مساءً</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> وقت الخروج (نهاية الدوام) *
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="pharm-end-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                                <option value="9">9</option><option value="10">10</option><option value="11" selected>11</option><option value="12">12</option>
+                            </select>
+                            <select id="pharm-end-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً">صباحاً</option>
+                                <option value="مساءً" selected>مساءً</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
@@ -478,21 +563,41 @@
                     <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
                     <input type="text" id="lab-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07800000000">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل</label>
-                    <input type="text" id="lab-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: 7 صباحاً - 9 مساءً">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / الموقع</label>
-                    <input type="text" id="lab-address" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: قرب المستشفى العام">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">ملاحظات / خدمات</label>
-                    <textarea id="lab-notes" rows="2" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="الفحوصات المتاحة..."></textarea>
-                </div>
-                <div class="flex justify-end space-x-3 space-x-reverse pt-4 border-t border-gray-100">
-                    <button type="button" onclick="closeModal('laboratory-modal')" class="px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold transition">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition">حفظ المختبر</button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                            <i class="fa-regular fa-clock text-teal-500"></i> وقت الدخول (بداية الدوام) *
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="lab-start-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7" selected>7</option><option value="8">8</option>
+                                <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <select id="lab-start-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً" selected>صباحاً</option>
+                                <option value="مساءً">مساءً</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock-rotate-left text-teal-500"></i> وقت الخروج (نهاية الدوام) *
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="lab-end-hour" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-800 text-sm">
+                                <option value="" disabled selected>الساعة</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                                <option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <select id="lab-end-ampm" required class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-800 text-sm">
+                                <option value="صباحاً">صباحاً</option>
+                                <option value="مساءً" selected>مساءً</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -829,22 +934,17 @@
 
         // Standard Baseline Specialties & Working Hours
         const BASE_SPECIALTIES = [
-            "طب عام وجراحة",
-            "طب الأطفال وحديثي الولادة",
-            "أمراض الباطنية والقلبية",
-            "جراحة العظام والمفاصل والكسور",
-            "أمراض النساء والتوليد والعقم",
-            "جراحة الفم والأسنان",
-            "طب وجراحة العيون",
-            "أمراض الأنف والأذن والحنجرة",
-            "الأمراض الجلدية والتناسلية",
-            "جراحة الكلى والمسالك البولية",
+            "طب الأطفال",
+            "النسائية والتوليد",
+            "الباطنية والقلبية",
+            "طب وجراحة الأسنان",
+            "جراحة العظام والمفاصل",
             "الجراحة العامة والناظورية",
-            "الأمراض الصدرية والتنفسية",
-            "طب وجراحة الأعصاب",
-            "العلاج الطبيعي والتأهيل الطبي",
-            "أشعة وسونار",
-            "طب الطوارئ والحوادث"
+            "الأنف والأذن والحنجرة",
+            "العيون وجراحتها",
+            "الجلدية والتجميل",
+            "المسالك البولية والكلى",
+            "الأشعة والسونار"
         ];
 
         const HOUR_SLOTS = [
@@ -876,10 +976,14 @@
             { value: 7, label: "07:00 صباحاً" }
         ];
 
-        function formatHourLabel(h) {
-            const num = parseInt(h, 10);
-            const found = HOUR_SLOTS.find(s => s.value === num);
-            return found ? found.label : `${num}:00`;
+        function to24Hour(hourStr, ampmStr) {
+            let h = parseInt(hourStr, 10) || 0;
+            if (ampmStr === 'مساءً' || ampmStr === 'PM') {
+                if (h < 12) h += 12;
+            } else {
+                if (h === 12) h = 0;
+            }
+            return h;
         }
 
         function escapeHtml(str) {
@@ -892,35 +996,10 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function populateTimeSelect(selectElement, selectedValue, placeholder) {
-            if (!selectElement) return;
-            const currentVal = parseInt(selectedValue, 10);
-            let html = `<option value="" disabled ${isNaN(currentVal) ? 'selected' : ''}>${placeholder}</option>`;
-            
-            html += `<optgroup label="الفترة المسائية والعصر (مساءً)">`;
-            HOUR_SLOTS.filter(s => s.value >= 12).forEach(s => {
-                const isSel = (s.value === currentVal) ? 'selected' : '';
-                html += `<option value="${s.value}" ${isSel}>${s.label}</option>`;
-            });
-            html += `</optgroup>`;
-
-            html += `<optgroup label="الفترة الصباحية (صباحاً)">`;
-            HOUR_SLOTS.filter(s => s.value < 12).forEach(s => {
-                const isSel = (s.value === currentVal) ? 'selected' : '';
-                html += `<option value="${s.value}" ${isSel}>${s.label}</option>`;
-            });
-            html += `</optgroup>`;
-
-            selectElement.innerHTML = html;
-        }
-
-        function populateDoctorDropdowns(selectedSpecialty = '', selectedStart = 16, selectedEnd = 20) {
+        function populateDoctorDropdowns(selectedSpecialty = '') {
             const specialtySelect = document.getElementById('doc-specialty');
-            const startHourSelect = document.getElementById('doc-start-hour');
-            const endHourSelect = document.getElementById('doc-end-hour');
             if (!specialtySelect) return;
 
-            // Dynamically gather all unique existing specialties from Firebase doctors
             const specialtiesSet = new Set(BASE_SPECIALTIES);
             if (typeof doctorsData === 'object' && doctorsData !== null) {
                 Object.values(doctorsData).forEach(doc => {
@@ -934,7 +1013,6 @@
                 specialtiesSet.add(selectedSpecialty.trim());
             }
 
-            // Populate Specialty Dropdown Menu
             let specHtml = `<option value="" disabled ${!selectedSpecialty ? 'selected' : ''}>-- اختر الاختصاص الطبي من القائمة --</option>`;
             Array.from(specialtiesSet).forEach(spec => {
                 const isSelected = (spec === selectedSpecialty) ? 'selected' : '';
@@ -943,10 +1021,6 @@
             specHtml += `<option value="__custom__" class="font-bold text-indigo-600 bg-indigo-50">+ إضافة اختصاص طبي جديد...</option>`;
             specialtySelect.innerHTML = specHtml;
             if (selectedSpecialty) specialtySelect.value = selectedSpecialty;
-
-            // Populate Entry and Exit Time Dropdowns
-            populateTimeSelect(startHourSelect, selectedStart, "-- اختر وقت الدخول --");
-            populateTimeSelect(endHourSelect, selectedEnd, "-- اختر وقت الخروج --");
         }
 
         function handleSpecialtyChange(select) {
@@ -971,20 +1045,44 @@
             if (mode === 'add') {
                 document.getElementById('doctor-modal-title').innerText = 'إضافة طبيب جديد';
                 document.getElementById('doc-id').value = '';
-                populateDoctorDropdowns('', 16, 20); // Default: 4 PM to 8 PM
+                populateDoctorDropdowns('');
+                document.getElementById('doc-start-hour').value = '4';
+                document.getElementById('doc-start-ampm').value = 'مساءً';
+                document.getElementById('doc-end-hour').value = '8';
+                document.getElementById('doc-end-ampm').value = 'مساءً';
+                document.querySelectorAll('input[name="doc-day"]').forEach(cb => {
+                    cb.checked = (cb.value !== 'الجمعة');
+                });
             } else {
                 document.getElementById('doctor-modal-title').innerText = 'تعديل بيانات الطبيب';
                 const doc = doctorsData[key];
                 if (doc) {
                     document.getElementById('doc-id').value = key;
                     document.getElementById('doc-name').value = doc.name || '';
-                    const startH = (doc.startHour !== undefined && doc.startHour !== null) ? doc.startHour : 16;
-                    const endH = (doc.endHour !== undefined && doc.endHour !== null) ? doc.endHour : 20;
-                    populateDoctorDropdowns(doc.specialty || '', startH, endH);
+                    populateDoctorDropdowns(doc.specialty || '');
                     document.getElementById('doc-title').value = doc.title || '';
                     document.getElementById('doc-phones').value = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '');
                     document.getElementById('doc-address').value = doc.addressLandmark || '';
                     document.getElementById('doc-notes').value = doc.notes || '';
+
+                    const startH = (doc.startHour !== undefined && doc.startHour !== null) ? doc.startHour : 16;
+                    const endH = (doc.endHour !== undefined && doc.endHour !== null) ? doc.endHour : 20;
+
+                    let sAmPm = startH >= 12 ? 'مساءً' : 'صباحاً';
+                    let s12 = startH % 12; if (s12 === 0) s12 = 12;
+                    let eAmPm = endH >= 12 ? 'مساءً' : 'صباحاً';
+                    let e12 = endH % 12; if (e12 === 0) e12 = 12;
+
+                    document.getElementById('doc-start-hour').value = doc.startTime ? (parseInt(doc.startTime, 10) || s12) : s12;
+                    document.getElementById('doc-start-ampm').value = doc.startTime && doc.startTime.includes('صباحاً') ? 'صباحاً' : sAmPm;
+                    document.getElementById('doc-end-hour').value = doc.endTime ? (parseInt(doc.endTime, 10) || e12) : e12;
+                    document.getElementById('doc-end-ampm').value = doc.endTime && doc.endTime.includes('صباحاً') ? 'صباحاً' : eAmPm;
+
+                    const docDays = Array.isArray(doc.days) ? doc.days : (doc.daysString ? doc.daysString.split(/[,،]/).map(s => s.trim()) : ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"]);
+                    document.querySelectorAll('input[name="doc-day"]').forEach(cb => {
+                        cb.checked = docDays.includes(cb.value);
+                    });
+
                     form.dataset.firebaseKey = key;
                 }
             }
@@ -1002,12 +1100,24 @@
                 return;
             }
 
-            const startHourVal = parseInt(document.getElementById('doc-start-hour').value, 10);
-            const endHourVal = parseInt(document.getElementById('doc-end-hour').value, 10);
-            const startHour = isNaN(startHourVal) ? 16 : startHourVal;
-            const endHour = isNaN(endHourVal) ? 20 : endHourVal;
+            const checkedDays = Array.from(document.querySelectorAll('input[name="doc-day"]:checked')).map(cb => cb.value);
+            if (checkedDays.length === 0) {
+                showToast('يرجى اختيار يوم دوام واحد على الأقل.', 'error');
+                return;
+            }
+            const daysString = checkedDays.join('، ');
 
-            const workingHoursText = `من ${formatHourLabel(startHour)} إلى ${formatHourLabel(endHour)}`;
+            const startHStr = document.getElementById('doc-start-hour').value || "4";
+            const startAmPm = document.getElementById('doc-start-ampm').value || "مساءً";
+            const endHStr = document.getElementById('doc-end-hour').value || "8";
+            const endAmPm = document.getElementById('doc-end-ampm').value || "مساءً";
+
+            const startTime = `${startHStr}:00 ${startAmPm}`;
+            const endTime = `${endHStr}:00 ${endAmPm}`;
+            const workingHoursText = `من ${startTime} إلى ${endTime}`;
+
+            const startHour = to24Hour(startHStr, startAmPm);
+            const endHour = to24Hour(endHStr, endAmPm);
 
             const phonesRaw = document.getElementById('doc-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
@@ -1017,6 +1127,8 @@
                 specialty: specialtyVal,
                 title: document.getElementById('doc-title').value || 'طبيب اختصاص',
                 phoneNumbers: phoneList,
+                startTime: startTime,
+                endTime: endTime,
                 workingHoursText: workingHoursText,
                 startHour: startHour,
                 startMinute: 0,
@@ -1024,7 +1136,8 @@
                 endMinute: 0,
                 addressLandmark: document.getElementById('doc-address').value,
                 notes: document.getElementById('doc-notes').value,
-                days: ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"],
+                days: checkedDays,
+                daysString: daysString,
                 isEmergencyAvailable: false,
                 orderIndex: 0
             };
@@ -1134,6 +1247,10 @@
             if (mode === 'add') {
                 document.getElementById('pharmacy-modal-title').innerText = 'إضافة صيدلية جديدة';
                 document.getElementById('pharm-id').value = '';
+                document.getElementById('pharm-start-hour').value = '8';
+                document.getElementById('pharm-start-ampm').value = 'صباحاً';
+                document.getElementById('pharm-end-hour').value = '11';
+                document.getElementById('pharm-end-ampm').value = 'مساءً';
             } else {
                 document.getElementById('pharmacy-modal-title').innerText = 'تعديل بيانات الصيدلية';
                 const p = pharmaciesData[key];
@@ -1142,9 +1259,20 @@
                     document.getElementById('pharm-name').value = p.name || '';
                     document.getElementById('pharm-pharmacist').value = p.pharmacist || '';
                     document.getElementById('pharm-phones').value = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '');
-                    document.getElementById('pharm-hours').value = p.workingHours || '';
                     document.getElementById('pharm-address').value = p.addressLandmark || '';
                     document.getElementById('pharm-notes').value = p.notes || '';
+
+                    if (p.startTime) {
+                        const parts = p.startTime.split(' ');
+                        document.getElementById('pharm-start-hour').value = parseInt(parts[0], 10) || 8;
+                        document.getElementById('pharm-start-ampm').value = parts[1] || 'صباحاً';
+                    }
+                    if (p.endTime) {
+                        const parts = p.endTime.split(' ');
+                        document.getElementById('pharm-end-hour').value = parseInt(parts[0], 10) || 11;
+                        document.getElementById('pharm-end-ampm').value = parts[1] || 'مساءً';
+                    }
+
                     form.dataset.firebaseKey = key;
                 }
             }
@@ -1158,11 +1286,22 @@
             const phonesRaw = document.getElementById('pharm-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
+            const startH = document.getElementById('pharm-start-hour').value || "8";
+            const startAmPm = document.getElementById('pharm-start-ampm').value || "صباحاً";
+            const endH = document.getElementById('pharm-end-hour').value || "11";
+            const endAmPm = document.getElementById('pharm-end-ampm').value || "مساءً";
+
+            const startTime = `${startH}:00 ${startAmPm}`;
+            const endTime = `${endH}:00 ${endAmPm}`;
+            const workingHours = `من ${startTime} إلى ${endTime}`;
+
             const pharmObj = {
                 name: document.getElementById('pharm-name').value,
                 pharmacist: document.getElementById('pharm-pharmacist').value,
                 phoneNumbers: phoneList,
-                workingHours: document.getElementById('pharm-hours').value,
+                startTime: startTime,
+                endTime: endTime,
+                workingHours: workingHours,
                 addressLandmark: document.getElementById('pharm-address').value,
                 notes: document.getElementById('pharm-notes').value,
                 isOnDutyTonight: false,
@@ -1274,6 +1413,10 @@
             if (mode === 'add') {
                 document.getElementById('lab-modal-title').innerText = 'إضافة مختبر جديد';
                 document.getElementById('lab-id').value = '';
+                document.getElementById('lab-start-hour').value = '7';
+                document.getElementById('lab-start-ampm').value = 'صباحاً';
+                document.getElementById('lab-end-hour').value = '9';
+                document.getElementById('lab-end-ampm').value = 'مساءً';
             } else {
                 document.getElementById('lab-modal-title').innerText = 'تعديل بيانات المختبر';
                 const lab = labsData[key];
@@ -1282,9 +1425,20 @@
                     document.getElementById('lab-name').value = lab.name || '';
                     document.getElementById('lab-specialist').value = lab.specialist || '';
                     document.getElementById('lab-phones').value = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '');
-                    document.getElementById('lab-hours').value = lab.workingHours || '';
                     document.getElementById('lab-address').value = lab.addressLandmark || '';
                     document.getElementById('lab-notes').value = lab.notes || '';
+
+                    if (lab.startTime) {
+                        const parts = lab.startTime.split(' ');
+                        document.getElementById('lab-start-hour').value = parseInt(parts[0], 10) || 7;
+                        document.getElementById('lab-start-ampm').value = parts[1] || 'صباحاً';
+                    }
+                    if (lab.endTime) {
+                        const parts = lab.endTime.split(' ');
+                        document.getElementById('lab-end-hour').value = parseInt(parts[0], 10) || 9;
+                        document.getElementById('lab-end-ampm').value = parts[1] || 'مساءً';
+                    }
+
                     form.dataset.firebaseKey = key;
                 }
             }
@@ -1298,11 +1452,22 @@
             const phonesRaw = document.getElementById('lab-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
+            const startH = document.getElementById('lab-start-hour').value || "7";
+            const startAmPm = document.getElementById('lab-start-ampm').value || "صباحاً";
+            const endH = document.getElementById('lab-end-hour').value || "9";
+            const endAmPm = document.getElementById('lab-end-ampm').value || "مساءً";
+
+            const startTime = `${startH}:00 ${startAmPm}`;
+            const endTime = `${endH}:00 ${endAmPm}`;
+            const workingHours = `من ${startTime} إلى ${endTime}`;
+
             const labObj = {
                 name: document.getElementById('lab-name').value,
                 specialist: document.getElementById('lab-specialist').value,
                 phoneNumbers: phoneList,
-                workingHours: document.getElementById('lab-hours').value,
+                startTime: startTime,
+                endTime: endTime,
+                workingHours: workingHours,
                 addressLandmark: document.getElementById('lab-address').value,
                 notes: document.getElementById('lab-notes').value,
                 workingDays: "",

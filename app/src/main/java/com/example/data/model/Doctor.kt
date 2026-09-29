@@ -16,7 +16,9 @@ data class Doctor(
     val startMinute: Int = 0,
     val endHour: Int = 20,          // 24-hr format (e.g. 20 for 8:00 PM)
     val endMinute: Int = 0,
-    val workingHoursText: String = "",
+    val startTime: String = "04:00 مساءً",
+    val endTime: String = "08:00 مساءً",
+    val workingHoursText: String = "من 04:00 مساءً إلى 08:00 مساءً",
     val addressLandmark: String = "",
     val phoneNumbers: List<String> = emptyList(),
     val notes: String = "",
