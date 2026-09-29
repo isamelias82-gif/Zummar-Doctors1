@@ -10,7 +10,8 @@ data class SponsorBanner(
     val actionValue: String = "+9647875023922",
     val expiryDate: String = "",      // format: "YYYY-MM-DD" e.g. "2026-12-31"
     val title: String = "مجمع النور الطبي التخصصي - زمار",
-    val description: String = ""
+    val description: String = "",
+    val actionLink: String = ""
 ) {
     /**
      * Determines whether the banner is currently active and within expiry date.

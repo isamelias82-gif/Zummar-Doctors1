@@ -72,7 +72,7 @@ fun TopSponsorshipBanner(
                 .aspectRatio(16f / 5f) // 16:5 ratio as specified
                 .clip(RoundedCornerShape(10.dp))
                 .clickable {
-                    handleBannerAction(context, banner.actionType, banner.actionValue)
+                    handleBannerAction(context, banner.actionType, banner.actionValue, banner.actionLink)
                 }
         ) {
             // Banner Image
@@ -219,8 +219,17 @@ fun TopSponsorshipBanner(
  * - WhatsApp: launches WhatsApp via https://wa.me/
  * - External Link: opens default browser via intent
  */
-fun handleBannerAction(context: Context, actionType: String, actionValue: String) {
+fun handleBannerAction(context: Context, actionType: String, actionValue: String, actionLink: String) {
     try {
+        if (actionLink.isNotBlank()) {
+            var url = actionLink.trim()
+            if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("tel:") && !url.startsWith("wa.me/")) {
+                url = "https://$url"
+            }
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(intent)
+            return
+        }
         when (actionType) {
             SponsorBanner.ACTION_PHONE -> {
                 val cleanNumber = actionValue.replace(" ", "").replace("-", "")

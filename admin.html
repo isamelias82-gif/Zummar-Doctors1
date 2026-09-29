@@ -275,7 +275,7 @@
             <section id="section-banner" class="space-y-6 hidden">
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <h2 class="text-xl font-bold text-gray-900 mb-4">إدارة الإعلان الرئيسي</h2>
-                    <form id="banner-form" onsubmit="saveBanner(event)" class="space-y-4">
+                    <form id="banner-form" onsubmit="saveBanner(event)" class="space-y-4" enctype="multipart/form-data">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-700 mb-1">عنوان الإعلان</label>
@@ -287,6 +287,10 @@
                                     <option value="true">نشط</option>
                                     <option value="false">غير نشط</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">رابط الزر / رابط التحويل</label>
+                                <input type="text" id="banner-action-link" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
                             </div>
                         </div>
                         <div>
@@ -856,6 +860,7 @@
                 document.getElementById('banner-desc').value = banner.description || '';
                 document.getElementById('banner-active').value = String(banner.isActive !== false);
                 document.getElementById('banner-action-value').value = banner.actionValue || '';
+                document.getElementById('banner-action-link').value = banner.actionLink || '';
                 document.getElementById('banner-expiry').value = banner.expiryDate || '';
             });
 
@@ -1722,6 +1727,7 @@
                     description: document.getElementById('banner-desc').value,
                     isActive: document.getElementById('banner-active').value === 'true',
                     actionValue: document.getElementById('banner-action-value').value,
+                    actionLink: document.getElementById('banner-action-link').value,
                     expiryDate: document.getElementById('banner-expiry').value,
                     actionType: 'WHATSAPP'
                 };
@@ -1734,7 +1740,8 @@
                         btn.innerText = 'حفظ الإعلان';
                     })
                     .catch(err => {
-                        showToast('خطأ: ' + err.message, 'error');
+                        console.error("Database save error:", err);
+                        showToast('خطأ في قاعدة البيانات: ' + err.message, 'error');
                         btn.disabled = false;
                         btn.innerText = 'حفظ الإعلان';
                     });
@@ -1742,15 +1749,15 @@
 
             if (file) {
                 const storageRef = storage.ref('banners/' + Date.now() + '_' + file.name);
-                storageRef.put(file).then(snapshot => {
-                    snapshot.ref.getDownloadURL().then(url => {
-                        saveToDatabase(url);
+                storageRef.put(file)
+                    .then(snapshot => snapshot.ref.getDownloadURL())
+                    .then(url => saveToDatabase(url))
+                    .catch(err => {
+                        console.error("Storage upload error:", err);
+                        showToast('خطأ في رفع الصورة: ' + err.message, 'error');
+                        btn.disabled = false;
+                        btn.innerText = 'حفظ الإعلان';
                     });
-                }).catch(err => {
-                    showToast('خطأ في رفع الصورة: ' + err.message, 'error');
-                    btn.disabled = false;
-                    btn.innerText = 'حفظ الإعلان';
-                });
             } else {
                 saveToDatabase(null);
             }
