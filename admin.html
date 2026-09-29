@@ -289,6 +289,20 @@
                             </div>
                         </div>
                         <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">رابط الصورة (URL)</label>
+                            <input type="url" id="banner-image" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">الهاتف / واتساب</label>
+                                <input type="text" id="banner-action-value" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء</label>
+                                <input type="date" id="banner-expiry" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1">وصف الإعلان</label>
                             <textarea id="banner-desc" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" rows="2"></textarea>
                         </div>
@@ -832,6 +846,17 @@
                 renderLabs(snapshot);
             });
 
+            // Banner listener
+            rtdb.ref('sponsor_banner').on('value', (snapshot) => {
+                const banner = snapshot.val() || {};
+                document.getElementById('banner-title').value = banner.title || '';
+                document.getElementById('banner-desc').value = banner.description || '';
+                document.getElementById('banner-active').value = String(banner.isActive !== false);
+                document.getElementById('banner-image').value = banner.imagePath || '';
+                document.getElementById('banner-action-value').value = banner.actionValue || '';
+                document.getElementById('banner-expiry').value = banner.expiryDate || '';
+            });
+
             // App Settings (/app_settings) listener
             settingsListenerRef = rtdb.ref('app_settings');
             settingsListenerRef.on('value', (snapshot) => {
@@ -921,6 +946,9 @@
             } else if (tabName === 'laboratories') {
                 document.getElementById('tab-laboratories').className = "tab-btn px-5 py-3 font-bold border-b-2 border-teal-600 text-teal-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-laboratories').classList.remove('hidden');
+            } else if (tabName === 'banner') {
+                document.getElementById('tab-banner').className = "tab-btn px-5 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 transition rounded-t-lg";
+                document.getElementById('section-banner').classList.remove('hidden');
             } else if (tabName === 'settings') {
                 document.getElementById('tab-settings').className = "tab-btn px-5 py-3 font-bold border-b-2 border-purple-600 text-purple-600 flex items-center gap-2 transition rounded-t-lg";
                 document.getElementById('section-settings').classList.remove('hidden');
@@ -1676,6 +1704,22 @@
                         showToast('خطأ: ' + err.message, 'error');
                     });
             }
+        }
+
+        function saveBanner(e) {
+            e.preventDefault();
+            const bannerObj = {
+                title: document.getElementById('banner-title').value,
+                description: document.getElementById('banner-desc').value,
+                isActive: document.getElementById('banner-active').value === 'true',
+                imagePath: document.getElementById('banner-image').value,
+                actionValue: document.getElementById('banner-action-value').value,
+                expiryDate: document.getElementById('banner-expiry').value,
+                actionType: 'WHATSAPP' // Default as requested
+            };
+            rtdb.ref('sponsor_banner').update(bannerObj)
+                .then(() => showToast('تم حفظ الإعلان بنجاح!'))
+                .catch(err => showToast('خطأ: ' + err.message, 'error'));
         }
     </script>
 </body>
