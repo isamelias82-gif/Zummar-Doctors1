@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.LocalPharmacy
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -99,6 +103,22 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
     val sponsorBanner by viewModel.sponsorBanner.collectAsStateWithLifecycle()
     val pharmacies by viewModel.pharmacies.collectAsStateWithLifecycle()
     val laboratories by viewModel.laboratories.collectAsStateWithLifecycle()
+    val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // Auto-revert if currently viewing a section that gets disabled live by admin
+    LaunchedEffect(appSettings.pharmaciesEnabled) {
+        if (!appSettings.pharmaciesEnabled && currentTab == AppTab.PHARMACIES) {
+            viewModel.setTab(AppTab.DOCTORS)
+            Toast.makeText(context, "تم إغلاق قسم الصيدليات مؤقتاً من قِبل الإدارة", Toast.LENGTH_SHORT).show()
+        }
+    }
+    LaunchedEffect(appSettings.laboratoriesEnabled) {
+        if (!appSettings.laboratoriesEnabled && currentTab == AppTab.LABORATORIES) {
+            viewModel.setTab(AppTab.DOCTORS)
+            Toast.makeText(context, "تم إغلاق قسم المختبرات مؤقتاً من قِبل الإدارة", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // BackHandler to handle custom state switching back navigation
     if (currentTab != AppTab.DOCTORS) {
@@ -137,15 +157,42 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                 NavigationBarItem(
                     selected = currentTab == AppTab.PHARMACIES,
                     onClick = {
-                        viewModel.setTab(AppTab.PHARMACIES)
+                        if (appSettings.pharmaciesEnabled) {
+                            viewModel.setTab(AppTab.PHARMACIES)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "قسم الصيدليات مغلق حالياً - سيتوفر قريباً 🌙",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     icon = {
-                        Icon(
-                            imageVector = Icons.Default.LocalPharmacy,
-                            contentDescription = "الصيدليات الخافرة"
+                        BadgedBox(
+                            badge = {
+                                if (!appSettings.pharmaciesEnabled) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text("مغلق", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalPharmacy,
+                                contentDescription = "الصيدليات",
+                                tint = if (appSettings.pharmaciesEnabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                    },
+                    label = {
+                        Text(
+                            "الصيدليات",
+                            color = if (appSettings.pharmaciesEnabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                     },
-                    label = { Text("الصيدليات الخافرة") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = TealPrimary,
                         selectedTextColor = TealPrimary,
@@ -157,15 +204,42 @@ fun ZummarDoctorsApp(viewModel: DoctorViewModel) {
                 NavigationBarItem(
                     selected = currentTab == AppTab.LABORATORIES,
                     onClick = {
-                        viewModel.setTab(AppTab.LABORATORIES)
+                        if (appSettings.laboratoriesEnabled) {
+                            viewModel.setTab(AppTab.LABORATORIES)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "قسم المختبرات الطبية مغلق حالياً - سيتوفر قريباً 🔬",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     icon = {
-                        Icon(
-                            imageVector = Icons.Default.Biotech,
-                            contentDescription = "المختبرات"
+                        BadgedBox(
+                            badge = {
+                                if (!appSettings.laboratoriesEnabled) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text("مغلق", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Biotech,
+                                contentDescription = "المختبرات",
+                                tint = if (appSettings.laboratoriesEnabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                    },
+                    label = {
+                        Text(
+                            "المختبرات الطبية",
+                            color = if (appSettings.laboratoriesEnabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                     },
-                    label = { Text("المختبرات الطبية") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = TealPrimary,
                         selectedTextColor = TealPrimary,
@@ -277,6 +351,78 @@ fun AppStartupLoadingScreen() {
                     color = Color.White.copy(alpha = 0.8f)
                 )
             )
+        }
+    }
+}
+
+@Composable
+fun SectionLockedScreen(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                modifier = Modifier.size(80.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "قسم معطل",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Text(
+                    text = "سيتم التفعيل تلقائياً فور إتاحته من الإدارة دون الحاجة لتحديث التطبيق ⚡",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
         }
     }
 }

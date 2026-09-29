@@ -128,14 +128,14 @@ fun PharmaciesScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "الصيدليات الخافرة في زمار",
+                                    text = "الصيدليات في زمار",
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
                                 )
                                 Text(
-                                    text = "جدول الخفارات الليلية ومواعيد العمل الطارئ",
+                                    text = "دليل الصيدليات وأوقات الدوام والعناوين في زمار",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = MintCyan
                                     )
@@ -159,7 +159,7 @@ fun PharmaciesScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "ℹ️ تنويه: يتم تحديث جدول الصيدليات الخافرة أسبوعياً بالتنسيق مع نقابة الصيادلة في نينوى.",
+                            text = "ℹ️ تنويه: يتم تحديث بيانات ومواعيد عمل الصيدليات بصورة دورية ومستمرة.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TealPrimaryDark,
                                 fontWeight = FontWeight.Medium
@@ -326,7 +326,7 @@ fun PharmaciesScreen(
                 .align(Alignment.BottomStart)
                 .padding(start = 16.dp, bottom = 16.dp)
         ) {
-            WhatsAppFab(customMessage = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص قسم الصيدليات الخافرة...")
+            WhatsAppFab(customMessage = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص قسم الصيدليات...")
         }
     }
 }

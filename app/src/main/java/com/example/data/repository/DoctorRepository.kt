@@ -145,12 +145,27 @@ class DoctorRepository(
      * using addValueEventListener. Replaces all single-fetch get() calls and local-only caching.
      */
     fun getDoctorsFlow(): Flow<List<Doctor>> = callbackFlow {
+        // Emit initial local cache immediately for instantaneous startup
+        val initialCacheJob = launch(Dispatchers.IO) {
+            try {
+                val localDoctors = doctorDao.getAllDoctors().first()
+                if (localDoctors.isNotEmpty()) {
+                    trySend(localDoctors)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Initial local cache read error: ${e.message}")
+            }
+        }
+
         val ref = doctorsRef
         if (ref == null) {
             val job = launch {
                 doctorDao.getAllDoctors().collect { trySend(it) }
             }
-            awaitClose { job.cancel() }
+            awaitClose {
+                initialCacheJob.cancel()
+                job.cancel()
+            }
             return@callbackFlow
         }
 
@@ -177,10 +192,12 @@ class DoctorRepository(
                             doctorDao.clearAll()
                         }
                     } else {
-                        // Node does not exist at all in Firebase RTDB
-                        trySend(emptyList())
+                        // Node not found yet or offline: fallback to Room cache without clearing
                         CoroutineScope(Dispatchers.IO).launch {
-                            doctorDao.clearAll()
+                            val local = doctorDao.getAllDoctors().first()
+                            if (local.isNotEmpty()) {
+                                trySend(local)
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -195,8 +212,8 @@ class DoctorRepository(
 
         ref.addValueEventListener(listener)
 
-
         awaitClose {
+            initialCacheJob.cancel()
             ref.removeEventListener(listener)
         }
     }

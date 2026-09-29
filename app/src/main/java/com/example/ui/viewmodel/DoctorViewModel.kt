@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.model.AppSettings
 import com.example.data.model.Doctor
 import com.example.data.model.Laboratory
 import com.example.data.model.Pharmacy
@@ -97,6 +98,13 @@ class DoctorViewModel(application: Application) : AndroidViewModel(application) 
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
+        )
+
+    val appSettings: StateFlow<AppSettings> = (repository?.getAppSettingsFlow() ?: flowOf(AppSettings()))
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = AppSettings()
         )
 
     private val _sponsorBanner = MutableStateFlow(SponsorBanner.defaultBanner)

@@ -21,7 +21,8 @@
     <string name="edit_doctor">تعديل بيانات الطبيب</string>
     <string name="delete_doctor">حذف الطبيب</string>
     <string name="backup_restore">النسخ الاحتياطي والاستعادة</string>
-    <string name="on_call_pharmacies">الصيدليات الخافرة</string>
+    <string name="on_call_pharmacies">الصيدليات</string>
+    <string name="pharmacies">الصيدليات</string>
     <string name="medical_labs">المختبرات الطبية</string>
     <string name="coming_soon">قريباً في التحديث القادم</string>
 </resources>
