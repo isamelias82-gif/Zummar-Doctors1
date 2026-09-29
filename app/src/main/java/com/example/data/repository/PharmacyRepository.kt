@@ -8,11 +8,15 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class PharmacyRepository(private val context: Context) {
@@ -60,6 +64,23 @@ class PharmacyRepository(private val context: Context) {
 
     init {
         setupBackgroundListener()
+        startRestSyncLoop()
+    }
+
+    private fun startRestSyncLoop() {
+        CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                try {
+                    val list = FirebaseRestHelper.fetchPharmacies()
+                    if (list != null) {
+                        _livePharmacies.value = list.sortedBy { it.id }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "REST pharmacies poll error: ${e.message}")
+                }
+                delay(8000)
+            }
+        }
     }
 
     private fun setupBackgroundListener() {
@@ -72,7 +93,7 @@ class PharmacyRepository(private val context: Context) {
                         val parsed = SafeFirebaseParser.parsePharmacies(snapshot)
                         if (parsed.isNotEmpty()) {
                             _livePharmacies.value = parsed.sortedBy { it.id }
-                        } else {
+                        } else if (snapshot.exists()) {
                             _livePharmacies.value = emptyList()
                         }
                     } catch (e: Exception) {

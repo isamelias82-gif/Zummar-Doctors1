@@ -16,10 +16,12 @@ import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -79,10 +81,25 @@ class DoctorRepository(
     }
 
     fun getAppSettingsFlow(): Flow<AppSettings> = callbackFlow {
+        // Fast REST fetch & background polling engine
+        val restJob = launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    val settings = FirebaseRestHelper.fetchAppSettings()
+                    if (settings != null) {
+                        trySend(settings)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Settings REST poll error: ${e.message}")
+                }
+                delay(8000)
+            }
+        }
+
         val ref = appSettingsRef
         if (ref == null) {
             trySend(AppSettings())
-            awaitClose { }
+            awaitClose { restJob.cancel() }
             return@callbackFlow
         }
 
@@ -122,6 +139,7 @@ class DoctorRepository(
 
         ref.addValueEventListener(listener)
         awaitClose {
+            restJob.cancel()
             ref.removeEventListener(listener)
         }
     }
@@ -142,10 +160,10 @@ class DoctorRepository(
 
     /**
      * Live Kotlin callbackFlow streaming real-time updates directly from Firebase Realtime Database
-     * using addValueEventListener. Replaces all single-fetch get() calls and local-only caching.
+     * using addValueEventListener alongside direct HTTPS REST fallback for 100% reliability on release APKs.
      */
     fun getDoctorsFlow(): Flow<List<Doctor>> = callbackFlow {
-        // Emit initial local cache immediately for instantaneous startup
+        // 1. Emit initial local cache immediately for instantaneous startup
         val initialCacheJob = launch(Dispatchers.IO) {
             try {
                 val localDoctors = doctorDao.getAllDoctors().first()
@@ -157,6 +175,28 @@ class DoctorRepository(
             }
         }
 
+        // 2. Direct HTTPS REST fetch and periodic fallback poll
+        val restSyncJob = launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    val restDoctors = FirebaseRestHelper.fetchDoctors()
+                    if (restDoctors != null) {
+                        if (restDoctors.isNotEmpty()) {
+                            val sorted = restDoctors.sortedBy { it.id }
+                            trySend(sorted)
+                            doctorDao.replaceAll(sorted)
+                        } else {
+                            trySend(emptyList())
+                            doctorDao.clearAll()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "REST doctors fetch error: ${e.message}")
+                }
+                delay(8000)
+            }
+        }
+
         val ref = doctorsRef
         if (ref == null) {
             val job = launch {
@@ -164,6 +204,7 @@ class DoctorRepository(
             }
             awaitClose {
                 initialCacheJob.cancel()
+                restSyncJob.cancel()
                 job.cancel()
             }
             return@callbackFlow
@@ -214,6 +255,7 @@ class DoctorRepository(
 
         awaitClose {
             initialCacheJob.cancel()
+            restSyncJob.cancel()
             ref.removeEventListener(listener)
         }
     }

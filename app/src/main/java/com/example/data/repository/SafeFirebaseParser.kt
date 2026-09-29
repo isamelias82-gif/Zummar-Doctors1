@@ -287,4 +287,113 @@ object SafeFirebaseParser {
             else -> emptyList()
         }
     }
+
+    fun jsonObjectToMap(obj: org.json.JSONObject): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        val keys = obj.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = obj.opt(key)
+            if (value is org.json.JSONArray) {
+                val list = mutableListOf<Any?>()
+                for (i in 0 until value.length()) {
+                    list.add(value.opt(i))
+                }
+                map[key] = list
+            } else {
+                map[key] = value
+            }
+        }
+        return map
+    }
+
+    fun parseDoctorsFromJson(jsonString: String): List<Doctor> {
+        val list = mutableListOf<Doctor>()
+        try {
+            if (jsonString.isBlank() || jsonString == "null") return emptyList()
+            val trimmed = jsonString.trim()
+            if (trimmed.startsWith("{")) {
+                val root = org.json.JSONObject(trimmed)
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val childObj = root.optJSONObject(key)
+                    if (childObj != null) {
+                        parseSingleDoctor(key, jsonObjectToMap(childObj))?.let { list.add(it) }
+                    }
+                }
+            } else if (trimmed.startsWith("[")) {
+                val array = org.json.JSONArray(trimmed)
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i)
+                    if (item != null) {
+                        parseSingleDoctor(i.toString(), jsonObjectToMap(item))?.let { list.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing doctors from JSON: ${e.message}")
+        }
+        return list
+    }
+
+    fun parsePharmaciesFromJson(jsonString: String): List<Pharmacy> {
+        val list = mutableListOf<Pharmacy>()
+        try {
+            if (jsonString.isBlank() || jsonString == "null") return emptyList()
+            val trimmed = jsonString.trim()
+            if (trimmed.startsWith("{")) {
+                val root = org.json.JSONObject(trimmed)
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val childObj = root.optJSONObject(key)
+                    if (childObj != null) {
+                        parseSinglePharmacy(key, jsonObjectToMap(childObj))?.let { list.add(it) }
+                    }
+                }
+            } else if (trimmed.startsWith("[")) {
+                val array = org.json.JSONArray(trimmed)
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i)
+                    if (item != null) {
+                        parseSinglePharmacy(i.toString(), jsonObjectToMap(item))?.let { list.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing pharmacies from JSON: ${e.message}")
+        }
+        return list
+    }
+
+    fun parseLaboratoriesFromJson(jsonString: String): List<Laboratory> {
+        val list = mutableListOf<Laboratory>()
+        try {
+            if (jsonString.isBlank() || jsonString == "null") return emptyList()
+            val trimmed = jsonString.trim()
+            if (trimmed.startsWith("{")) {
+                val root = org.json.JSONObject(trimmed)
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val childObj = root.optJSONObject(key)
+                    if (childObj != null) {
+                        parseSingleLaboratory(key, jsonObjectToMap(childObj))?.let { list.add(it) }
+                    }
+                }
+            } else if (trimmed.startsWith("[")) {
+                val array = org.json.JSONArray(trimmed)
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i)
+                    if (item != null) {
+                        parseSingleLaboratory(i.toString(), jsonObjectToMap(item))?.let { list.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing laboratories from JSON: ${e.message}")
+        }
+        return list
+    }
 }

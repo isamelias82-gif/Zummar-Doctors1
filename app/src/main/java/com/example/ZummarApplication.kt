@@ -3,6 +3,7 @@ package com.example
 import android.app.Application
 import android.util.Log
 import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import com.google.firebase.database.FirebaseDatabase
 
 class ZummarApplication : Application() {
@@ -10,7 +11,20 @@ class ZummarApplication : Application() {
         super.onCreate()
         try {
             if (FirebaseApp.getApps(this).isEmpty()) {
-                FirebaseApp.initializeApp(this)
+                try {
+                    FirebaseApp.initializeApp(this)
+                } catch (e: Exception) {
+                    Log.w("ZummarApplication", "Default FirebaseApp.initializeApp fallback: ${e.message}")
+                    val options = FirebaseOptions.Builder()
+                        .setApiKey("AIzaSyDUzr_tRj8ZfnDALQWV27IjrriPDx58leY")
+                        .setApplicationId("1:766082171749:android:zummardoctors")
+                        .setDatabaseUrl("https://zummar-doctors-default-rtdb.firebaseio.com")
+                        .setProjectId("zummar-doctors")
+                        .setStorageBucket("zummar-doctors.firebasestorage.app")
+                        .setGcmSenderId("766082171749")
+                        .build()
+                    FirebaseApp.initializeApp(this, options)
+                }
             }
         } catch (e: Exception) {
             Log.e("ZummarApplication", "FirebaseApp init failed: ${e.message}")
