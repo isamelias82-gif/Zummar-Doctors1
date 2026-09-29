@@ -368,8 +368,10 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">التخصص *</label>
-                        <input type="text" id="doc-specialty" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: طب الأطفال">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">التخصص (الاختصاص) *</label>
+                        <select id="doc-specialty" required onchange="handleSpecialtyChange(this)" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm cursor-pointer shadow-sm">
+                            <option value="" disabled selected>-- جاري تحميل التخصصات... --</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">اللقب / المسمى</label>
@@ -381,8 +383,10 @@
                     <input type="text" id="doc-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="07800000000, 07700000000">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل / التوقيت</label>
-                    <input type="text" id="doc-hours" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: من 4 عصراً إلى 8 مساءً">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">أوقات العمل / التوقيت (الساعة)</label>
+                    <select id="doc-hours" onchange="handleHoursChange(this)" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-sm cursor-pointer shadow-sm">
+                        <option value="" disabled selected>-- جاري تحميل أوقات الدوام... --</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">العنوان / أقرب نقطة دالة</label>
@@ -811,6 +815,126 @@
             deleteDoctor(btn.dataset.key, name);
         }
 
+        // Standard Baseline Specialties & Working Hours
+        const BASE_SPECIALTIES = [
+            "طب عام وجراحة",
+            "طب الأطفال وحديثي الولادة",
+            "أمراض الباطنية والقلبية",
+            "جراحة العظام والمفاصل والكسور",
+            "أمراض النساء والتوليد والعقم",
+            "جراحة الفم والأسنان",
+            "طب وجراحة العيون",
+            "أمراض الأنف والأذن والحنجرة",
+            "الأمراض الجلدية والتناسلية",
+            "جراحة الكلى والمسالك البولية",
+            "الجراحة العامة والناظورية",
+            "الأمراض الصدرية والتنفسية",
+            "طب وجراحة الأعصاب",
+            "العلاج الطبيعي والتأهيل الطبي",
+            "أشعة وسونار",
+            "طب الطوارئ والحوادث"
+        ];
+
+        const BASE_HOURS = [
+            "من 4:00 عصراً إلى 8:00 مساءً",
+            "من 3:00 عصراً إلى 7:00 مساءً",
+            "من 4:00 عصراً إلى 9:00 مساءً",
+            "من 5:00 عصراً إلى 9:00 مساءً",
+            "من 9:00 صباحاً إلى 1:00 ظهراً",
+            "من 9:00 صباحاً إلى 2:00 ظهراً",
+            "من 10:00 صباحاً إلى 2:00 ظهراً ومن 4:00 إلى 8:00 مساءً",
+            "صباحاً ومساءً (طيلة أيام الأسبوع)",
+            "يومياً من 4 عصراً إلى 8 مساءً ما عدا الجمعة",
+            "حسب الحجز والموعد المسبق",
+            "طوارئ 24 ساعة"
+        ];
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function populateDoctorDropdowns(selectedSpecialty = '', selectedHours = '') {
+            const specialtySelect = document.getElementById('doc-specialty');
+            const hoursSelect = document.getElementById('doc-hours');
+            if (!specialtySelect || !hoursSelect) return;
+
+            // Dynamically gather all unique existing specialties and time slots from Firebase doctors
+            const specialtiesSet = new Set(BASE_SPECIALTIES);
+            const hoursSet = new Set(BASE_HOURS);
+
+            if (typeof doctorsData === 'object' && doctorsData !== null) {
+                Object.values(doctorsData).forEach(doc => {
+                    if (doc && doc.specialty && typeof doc.specialty === 'string' && doc.specialty.trim()) {
+                        specialtiesSet.add(doc.specialty.trim());
+                    }
+                    if (doc && doc.workingHoursText && typeof doc.workingHoursText === 'string' && doc.workingHoursText.trim()) {
+                        hoursSet.add(doc.workingHoursText.trim());
+                    }
+                });
+            }
+
+            if (selectedSpecialty && selectedSpecialty.trim()) {
+                specialtiesSet.add(selectedSpecialty.trim());
+            }
+            if (selectedHours && selectedHours.trim()) {
+                hoursSet.add(selectedHours.trim());
+            }
+
+            // Populate Specialty Dropdown Menu
+            let specHtml = `<option value="" disabled ${!selectedSpecialty ? 'selected' : ''}>-- اختر الاختصاص الطبي من القائمة --</option>`;
+            Array.from(specialtiesSet).forEach(spec => {
+                const isSelected = (spec === selectedSpecialty) ? 'selected' : '';
+                specHtml += `<option value="${escapeHtml(spec)}" ${isSelected}>${escapeHtml(spec)}</option>`;
+            });
+            specHtml += `<option value="__custom__" class="font-bold text-indigo-600 bg-indigo-50">+ إضافة اختصاص طبي جديد...</option>`;
+            specialtySelect.innerHTML = specHtml;
+            if (selectedSpecialty) specialtySelect.value = selectedSpecialty;
+
+            // Populate Working Hours Dropdown Menu
+            let hoursHtml = `<option value="" disabled ${!selectedHours ? 'selected' : ''}>-- اختر أوقات وتوقيت الدوام (الساعة) --</option>`;
+            Array.from(hoursSet).forEach(h => {
+                const isSelected = (h === selectedHours) ? 'selected' : '';
+                hoursHtml += `<option value="${escapeHtml(h)}" ${isSelected}>${escapeHtml(h)}</option>`;
+            });
+            hoursHtml += `<option value="__custom__" class="font-bold text-indigo-600 bg-indigo-50">+ إضافة توقيت عمل جديد...</option>`;
+            hoursSelect.innerHTML = hoursHtml;
+            if (selectedHours) hoursSelect.value = selectedHours;
+        }
+
+        function handleSpecialtyChange(select) {
+            if (select.value === '__custom__') {
+                const customVal = prompt('يرجى كتابة الاختصاص الطبي الجديد:');
+                if (customVal && customVal.trim()) {
+                    const trimmed = customVal.trim();
+                    const newOpt = new Option(trimmed, trimmed, true, true);
+                    select.add(newOpt, select.options[select.options.length - 1]);
+                    select.value = trimmed;
+                } else {
+                    select.selectedIndex = 0;
+                }
+            }
+        }
+
+        function handleHoursChange(select) {
+            if (select.value === '__custom__') {
+                const customVal = prompt('يرجى كتابة توقيت العمل / الساعة الجديد (مثال: من 5 عصراً إلى 9 مساءً):');
+                if (customVal && customVal.trim()) {
+                    const trimmed = customVal.trim();
+                    const newOpt = new Option(trimmed, trimmed, true, true);
+                    select.add(newOpt, select.options[select.options.length - 1]);
+                    select.value = trimmed;
+                } else {
+                    select.selectedIndex = 0;
+                }
+            }
+        }
+
         function openDoctorModal(mode, key = null) {
             document.getElementById('doctor-modal').classList.remove('hidden');
             const form = document.getElementById('doctor-form');
@@ -819,16 +943,16 @@
             if (mode === 'add') {
                 document.getElementById('doctor-modal-title').innerText = 'إضافة طبيب جديد';
                 document.getElementById('doc-id').value = '';
+                populateDoctorDropdowns('', '');
             } else {
                 document.getElementById('doctor-modal-title').innerText = 'تعديل بيانات الطبيب';
                 const doc = doctorsData[key];
                 if (doc) {
                     document.getElementById('doc-id').value = key;
                     document.getElementById('doc-name').value = doc.name || '';
-                    document.getElementById('doc-specialty').value = doc.specialty || '';
+                    populateDoctorDropdowns(doc.specialty || '', doc.workingHoursText || '');
                     document.getElementById('doc-title').value = doc.title || '';
                     document.getElementById('doc-phones').value = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '');
-                    document.getElementById('doc-hours').value = doc.workingHoursText || '';
                     document.getElementById('doc-address').value = doc.addressLandmark || '';
                     document.getElementById('doc-notes').value = doc.notes || '';
                     form.dataset.firebaseKey = key;
@@ -841,15 +965,25 @@
             const form = document.getElementById('doctor-form');
             const existingKey = form.dataset.firebaseKey;
 
+            const specialtyVal = document.getElementById('doc-specialty').value;
+            if (!specialtyVal || specialtyVal === '__custom__') {
+                showToast('يرجى اختيار الاختصاص الطبي من القائمة.', 'error');
+                document.getElementById('doc-specialty').focus();
+                return;
+            }
+
+            const hoursVal = document.getElementById('doc-hours').value;
+            const finalHours = (hoursVal === '__custom__' || !hoursVal) ? '' : hoursVal;
+
             const phonesRaw = document.getElementById('doc-phones').value;
             const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
 
             const doctorObj = {
                 name: document.getElementById('doc-name').value,
-                specialty: document.getElementById('doc-specialty').value,
+                specialty: specialtyVal,
                 title: document.getElementById('doc-title').value || 'طبيب اختصاص',
                 phoneNumbers: phoneList,
-                workingHoursText: document.getElementById('doc-hours').value,
+                workingHoursText: finalHours,
                 addressLandmark: document.getElementById('doc-address').value,
                 notes: document.getElementById('doc-notes').value,
                 days: ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"],
