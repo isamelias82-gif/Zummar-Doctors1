@@ -42,6 +42,12 @@ jobs:
           else
             echo "KEY_ALIAS=upload" >> $GITHUB_ENV
           fi
+        elif [ -f "$GITHUB_WORKSPACE/debug.keystore.base64" ]; then
+          echo "No KEYSTORE_BASE64 secret provided. Using consistent keystore from debug.keystore.base64 to match local Android Studio signing..."
+          base64 -d debug.keystore.base64 > my-upload-key.jks
+          echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
         else
           echo "No KEYSTORE_BASE64 secret provided. Creating release upload keystore for CI..."
           keytool -genkey -v -keystore my-upload-key.jks \
