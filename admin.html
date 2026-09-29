@@ -603,8 +603,22 @@
                     <input type="text" id="lab-specialist" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="مثال: د. محمد علي">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">أرقام الهواتف (مفصولة بفواصل)</label>
-                    <input type="text" id="lab-phones" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="07800000000">
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                        <span>أرقام الهواتف *</span>
+                        <button type="button" onclick="addPhoneField('lab-phones-container', 'lab-phone-item', 'focus:ring-teal-500')" class="text-xs text-teal-600 hover:text-teal-800 font-bold flex items-center gap-1 bg-teal-50 px-2.5 py-1 rounded-lg transition">
+                            <i class="fa-solid fa-plus text-[10px]"></i> إضافة رقم آخر
+                        </button>
+                    </label>
+                    <div id="lab-phones-container" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                                    <i class="fa-solid fa-phone"></i>
+                                </span>
+                                <input type="tel" name="lab-phone-item" required dir="ltr" class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm text-right" placeholder="07800000000">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1039,6 +1053,67 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function renderPhoneInputs(containerId, inputName, focusRingClass, phoneList = []) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const numbers = (Array.isArray(phoneList) && phoneList.length > 0) ? phoneList : [''];
+            numbers.forEach((num, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2';
+                div.innerHTML = `
+                    <div class="relative flex-1">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-phone"></i>
+                        </span>
+                        <input type="tel" name="${inputName}" ${index === 0 ? 'required' : ''} dir="ltr" value="${escapeHtml(num)}"
+                               class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 ${focusRingClass} text-sm text-right"
+                               placeholder="07800000000">
+                    </div>
+                    ${index > 0 ? `<button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addPhoneField(containerId, inputName, focusRingClass) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (container.children.length >= 3) {
+                showToast('يمكنك إضافة 3 أرقام هاتف كحد أقصى.', 'info');
+                return;
+            }
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2';
+            div.innerHTML = `
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-phone"></i>
+                    </span>
+                    <input type="tel" name="${inputName}" dir="ltr"
+                           class="w-full pr-10 pl-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 ${focusRingClass} text-sm text-right"
+                           placeholder="07800000000">
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-xl transition" title="حذف الرقم"><i class="fa-solid fa-trash text-xs"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function getPhoneList(containerId, inputName) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            const inputs = container.querySelectorAll(`input[name="${inputName}"]`);
+            const list = [];
+            inputs.forEach(inp => {
+                const val = inp.value.trim();
+                if (val && !list.includes(val)) {
+                    list.push(val);
+                }
+            });
+            return list;
+        }
+
         function populateDoctorDropdowns(selectedSpecialty = '') {
             const specialtySelect = document.getElementById('doc-specialty');
             if (!specialtySelect) return;
@@ -1095,6 +1170,7 @@
                 document.getElementById('doc-end-ampm').value = 'مساءً';
                 document.getElementById('doc-show-fee').checked = false;
                 document.getElementById('doc-fee').value = '';
+                renderPhoneInputs('doc-phones-container', 'doc-phone-item', 'focus:ring-indigo-500', []);
                 document.querySelectorAll('input[name="doc-day"]').forEach(cb => {
                     cb.checked = (cb.value !== 'الجمعة');
                 });
@@ -1106,7 +1182,7 @@
                     document.getElementById('doc-name').value = doc.name || '';
                     populateDoctorDropdowns(doc.specialty || '');
                     document.getElementById('doc-title').value = doc.title || '';
-                    document.getElementById('doc-phones').value = Array.isArray(doc.phoneNumbers) ? doc.phoneNumbers.join(', ') : (doc.phoneNumbers || '');
+                    renderPhoneInputs('doc-phones-container', 'doc-phone-item', 'focus:ring-indigo-500', doc.phoneNumbers || []);
                     document.getElementById('doc-address').value = doc.addressLandmark || '';
                     document.getElementById('doc-notes').value = doc.notes || '';
                     document.getElementById('doc-show-fee').checked = !!doc.showConsultationFee;
@@ -1166,8 +1242,11 @@
             const startHour = to24Hour(startHStr, startAmPm);
             const endHour = to24Hour(endHStr, endAmPm);
 
-            const phonesRaw = document.getElementById('doc-phones').value;
-            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+            const phoneList = getPhoneList('doc-phones-container', 'doc-phone-item');
+            if (phoneList.length === 0) {
+                showToast('يرجى إدخال رقم هاتف واحد على الأقل.', 'error');
+                return;
+            }
 
             const showConsultationFee = document.getElementById('doc-show-fee').checked;
             const consultationFee = document.getElementById('doc-fee').value.trim();
@@ -1303,6 +1382,7 @@
                 document.getElementById('pharm-start-ampm').value = 'صباحاً';
                 document.getElementById('pharm-end-hour').value = '11';
                 document.getElementById('pharm-end-ampm').value = 'مساءً';
+                renderPhoneInputs('pharm-phones-container', 'pharm-phone-item', 'focus:ring-emerald-500', []);
             } else {
                 document.getElementById('pharmacy-modal-title').innerText = 'تعديل بيانات الصيدلية';
                 const p = pharmaciesData[key];
@@ -1310,7 +1390,7 @@
                     document.getElementById('pharm-id').value = key;
                     document.getElementById('pharm-name').value = p.name || '';
                     document.getElementById('pharm-pharmacist').value = p.pharmacist || '';
-                    document.getElementById('pharm-phones').value = Array.isArray(p.phoneNumbers) ? p.phoneNumbers.join(', ') : (p.phoneNumbers || '');
+                    renderPhoneInputs('pharm-phones-container', 'pharm-phone-item', 'focus:ring-emerald-500', p.phoneNumbers || []);
                     document.getElementById('pharm-address').value = p.addressLandmark || '';
                     document.getElementById('pharm-notes').value = p.notes || '';
 
@@ -1335,8 +1415,11 @@
             const form = document.getElementById('pharmacy-form');
             const existingKey = form.dataset.firebaseKey;
 
-            const phonesRaw = document.getElementById('pharm-phones').value;
-            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+            const phoneList = getPhoneList('pharm-phones-container', 'pharm-phone-item');
+            if (phoneList.length === 0) {
+                showToast('يرجى إدخال رقم هاتف واحد على الأقل.', 'error');
+                return;
+            }
 
             const startH = document.getElementById('pharm-start-hour').value || "8";
             const startAmPm = document.getElementById('pharm-start-ampm').value || "صباحاً";
@@ -1469,6 +1552,7 @@
                 document.getElementById('lab-start-ampm').value = 'صباحاً';
                 document.getElementById('lab-end-hour').value = '9';
                 document.getElementById('lab-end-ampm').value = 'مساءً';
+                renderPhoneInputs('lab-phones-container', 'lab-phone-item', 'focus:ring-teal-500', []);
             } else {
                 document.getElementById('lab-modal-title').innerText = 'تعديل بيانات المختبر';
                 const lab = labsData[key];
@@ -1476,7 +1560,7 @@
                     document.getElementById('lab-id').value = key;
                     document.getElementById('lab-name').value = lab.name || '';
                     document.getElementById('lab-specialist').value = lab.specialist || '';
-                    document.getElementById('lab-phones').value = Array.isArray(lab.phoneNumbers) ? lab.phoneNumbers.join(', ') : (lab.phoneNumbers || '');
+                    renderPhoneInputs('lab-phones-container', 'lab-phone-item', 'focus:ring-teal-500', lab.phoneNumbers || []);
                     document.getElementById('lab-address').value = lab.addressLandmark || '';
                     document.getElementById('lab-notes').value = lab.notes || '';
 
@@ -1501,8 +1585,11 @@
             const form = document.getElementById('lab-form');
             const existingKey = form.dataset.firebaseKey;
 
-            const phonesRaw = document.getElementById('lab-phones').value;
-            const phoneList = phonesRaw ? phonesRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+            const phoneList = getPhoneList('lab-phones-container', 'lab-phone-item');
+            if (phoneList.length === 0) {
+                showToast('يرجى إدخال رقم هاتف واحد على الأقل.', 'error');
+                return;
+            }
 
             const startH = document.getElementById('lab-start-hour').value || "7";
             const startAmPm = document.getElementById('lab-start-ampm').value || "صباحاً";
