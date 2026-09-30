@@ -7,10 +7,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -26,12 +28,14 @@ import com.example.ui.theme.TealPrimaryDark
 
 class SupportWebActivity : ComponentActivity() {
     companion object {
+        const val CRISP_URL = "https://go.crisp.chat/chat/embed/?website_id=50ac8743-e9cf-4f46-a2f1-888d6724bd72"
         const val EXTRA_URL = "extra_url"
-        fun start(context: Context, url: String) {
-            val targetUrl = if (url.isBlank()) {
-                "https://go.crisp.chat/chat/embed/?website_id=50ac8743-e9cf-4f46-a2f1-888d6724bd72"
+
+        fun start(context: Context, url: String? = null) {
+            val targetUrl = if (url.isNullOrBlank()) {
+                CRISP_URL
             } else {
-                url
+                url.trim()
             }
             val intent = Intent(context, SupportWebActivity::class.java).apply {
                 putExtra(EXTRA_URL, targetUrl)
@@ -40,10 +44,22 @@ class SupportWebActivity : ComponentActivity() {
         }
     }
 
+    private var webView: WebView? = null
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val url = intent.getStringExtra(EXTRA_URL) ?: "https://go.crisp.chat/chat/embed/?website_id=50ac8743-e9cf-4f46-a2f1-888d6724bd72"
+        val url = intent.getStringExtra(EXTRA_URL) ?: CRISP_URL
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView?.canGoBack() == true) {
+                    webView?.goBack()
+                } else {
+                    finish()
+                }
+            }
+        })
 
         setContent {
             MaterialTheme {
@@ -82,11 +98,12 @@ class SupportWebActivity : ComponentActivity() {
                             }
                         }
 
-                        // WebView with JS & DOM Storage enabled
+                        // WebView with JS, DOM Storage & Database enabled
                         Box(modifier = Modifier.weight(1f)) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
+                                        this@SupportWebActivity.webView = this
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -95,20 +112,40 @@ class SupportWebActivity : ComponentActivity() {
                                             javaScriptEnabled = true
                                             domStorageEnabled = true
                                             databaseEnabled = true
+                                            allowFileAccess = true
+                                            allowContentAccess = true
                                             setSupportMultipleWindows(true)
                                             javaScriptCanOpenWindowsAutomatically = true
                                             loadsImagesAutomatically = true
                                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                            cacheMode = WebSettings.LOAD_DEFAULT
+                                            useWideViewPort = true
+                                            loadWithOverviewMode = true
                                         }
                                         webViewClient = object : WebViewClient() {
+                                            @Deprecated("Deprecated in Java")
                                             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                                if (url != null && (url.startsWith("tel:") || url.startsWith("whatsapp:"))) {
+                                                return handleUrl(view, url)
+                                            }
+
+                                            override fun shouldOverrideUrlLoading(
+                                                view: WebView?,
+                                                request: WebResourceRequest?
+                                            ): Boolean {
+                                                return handleUrl(view, request?.url?.toString())
+                                            }
+
+                                            private fun handleUrl(view: WebView?, targetUrl: String?): Boolean {
+                                                if (targetUrl == null) return false
+                                                if (targetUrl.startsWith("tel:") || targetUrl.startsWith("whatsapp:") || targetUrl.startsWith("mailto:")) {
                                                     try {
-                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
                                                     } catch (e: Exception) {}
                                                     return true
                                                 }
-                                                return false
+                                                // Keep all link navigations inside the WebView
+                                                view?.loadUrl(targetUrl)
+                                                return true
                                             }
                                         }
                                         webChromeClient = WebChromeClient()
@@ -122,5 +159,11 @@ class SupportWebActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        webView?.destroy()
+        webView = null
+        super.onDestroy()
     }
 }

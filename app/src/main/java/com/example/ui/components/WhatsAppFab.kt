@@ -139,16 +139,36 @@ fun executeSmartAction(
         if (finalValue.isNotBlank()) {
             routeDynamicAction(context, finalValue, actionType, defaultMessage)
         } else {
-            Toast.makeText(context, "لم يتم تحديد وسيلة التواصل في لوحة التحكم بعد", Toast.LENGTH_SHORT).show()
+            // Default to Crisp chat interface in in-app WebView
+            openWebUrl(context, SupportWebActivity.CRISP_URL)
+        }
+    }
+}
+
+/**
+ * Opens web links inside in-app SupportWebActivity (with full JS, DOM Storage & Database enabled)
+ * or via Chrome Custom Tabs if preferred.
+ */
+fun openWebUrl(context: Context, url: String) {
+    try {
+        SupportWebActivity.start(context, url)
+    } catch (e: Exception) {
+        try {
+            val builder = CustomTabsIntent.Builder()
+            val customTabsIntent = builder.build()
+            customTabsIntent.launchUrl(context, Uri.parse(url))
+        } catch (e2: Exception) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(intent)
         }
     }
 }
 
 /**
  * Core Dynamic Router:
- * - "http://" or "https://" -> Intent.ACTION_VIEW
- * - numeric / phone -> Intent.ACTION_DIAL
- * - "wa.me" -> Intent.ACTION_VIEW
+ * - "http://" or "https://" -> in-app WebView / Custom Tabs (Crisp Chat / Web link)
+ * - numeric / phone -> Intent.ACTION_DIAL (Phone Dialer)
+ * - "wa.me" -> External WhatsApp or in-app web fallback
  */
 fun routeDynamicAction(
     context: Context,
@@ -157,42 +177,40 @@ fun routeDynamicAction(
     defaultMessage: String = ""
 ) {
     val input = rawInput.trim()
-    if (input.isBlank()) {
-        Toast.makeText(context, "لم يتم تحديد وسيلة التواصل", Toast.LENGTH_SHORT).show()
-        return
+    val targetUrl = if (input.isBlank()) {
+        SupportWebActivity.CRISP_URL
+    } else {
+        input
     }
 
     try {
-        if (input.startsWith("http://", ignoreCase = true) || input.startsWith("https://", ignoreCase = true)) {
+        if (targetUrl.startsWith("http://", ignoreCase = true) || targetUrl.startsWith("https://", ignoreCase = true)) {
             // Web Link / Crisp Chat / External URL / WhatsApp link
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(input))
-            context.startActivity(intent)
-        } else if (input.contains("wa.me") || input.contains("whatsapp.com") || actionType.equals("WHATSAPP", ignoreCase = true)) {
-            val cleanDigits = input.filter { it.isDigit() }
+            openWebUrl(context, targetUrl)
+        } else if (targetUrl.contains("wa.me") || targetUrl.contains("whatsapp.com") || actionType.equals("WHATSAPP", ignoreCase = true)) {
+            val cleanDigits = targetUrl.filter { it.isDigit() }
             val encodedMsg = if (defaultMessage.isNotBlank()) URLEncoder.encode(defaultMessage, StandardCharsets.UTF_8.toString()) else ""
             val waUrl = if (cleanDigits.isNotBlank()) {
                 if (encodedMsg.isNotBlank()) "https://wa.me/$cleanDigits?text=$encodedMsg" else "https://wa.me/$cleanDigits"
             } else {
-                if (input.startsWith("wa.me")) "https://$input" else input
+                if (targetUrl.startsWith("wa.me")) "https://$targetUrl" else targetUrl
             }
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-            context.startActivity(intent)
-        } else if (input.startsWith("tel:", ignoreCase = true)) {
-            val cleanNumber = input.removePrefix("tel:").removePrefix("TEL:").trim()
+            openWebUrl(context, waUrl)
+        } else if (targetUrl.startsWith("tel:", ignoreCase = true)) {
+            val cleanNumber = targetUrl.removePrefix("tel:").removePrefix("TEL:").trim()
             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanNumber"))
             context.startActivity(intent)
-        } else if (isPhoneNumber(input, actionType)) {
-            val cleanNumber = input.filter { it.isDigit() || it == '+' }
+        } else if (isPhoneNumber(targetUrl, actionType)) {
+            val cleanNumber = targetUrl.filter { it.isDigit() || it == '+' }
             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanNumber"))
             context.startActivity(intent)
         } else {
             // URL / Web domain without scheme (e.g. crisp.chat, chat.example.com)
-            val fullUrl = if (input.contains(".")) "https://$input" else "https://$input"
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-            context.startActivity(intent)
+            val fullUrl = if (targetUrl.contains(".")) "https://$targetUrl" else "https://$targetUrl"
+            openWebUrl(context, fullUrl)
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "تعذر تنفيذ الإجراء المطلوب", Toast.LENGTH_SHORT).show()
+        SupportWebActivity.start(context, SupportWebActivity.CRISP_URL)
     }
 }
 
