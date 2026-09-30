@@ -67,6 +67,7 @@ fun DoctorCard(
     doctor: Doctor,
     currentDayArabic: String,
     selectedDay: String? = null,
+    shareTemplate: String = "",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -381,10 +382,10 @@ fun DoctorCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Share Button
+                // Share Button (100% Dynamic Template from Admin Panel)
                 OutlinedButton(
                     onClick = {
-                        shareDoctorCard(context, doctor)
+                        shareDoctorCard(context, doctor, shareTemplate)
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -430,6 +431,63 @@ fun DoctorCard(
 }
 
 /**
+ * Manager to format doctor share message with 100% fidelity to Web Admin Panel settings.
+ */
+object DoctorShareManager {
+    @Volatile
+    var cachedTemplate: String = ""
+    @Volatile
+    var cachedFooterText: String = ""
+
+    const val DEFAULT_DOCTOR_DETAILS = """🩺 *بطاقة طبيب - دليل أطباء زمار* 🩺
+----------------------------
+👨‍⚕️ *الاسم:* {doctor_name}
+📋 *الاختصاص:* {specialty}
+📍 *العنوان:* {address}
+📞 *أرقام الحجز:* {phone}"""
+
+    const val DEFAULT_FOOTER_TEXT = """📲 للتواصل وحجز المواعيد، تحميل تطبيق أطباء زمار:
+https://chat.crisp.chat/l/50ac8743-e9cf-4f46-a2f1-888d6724bd72"""
+
+    fun formatMessage(template: String, doctor: Doctor): String {
+        val phoneStr = doctor.phoneNumbers.filter { it.isNotBlank() }.joinToString(" | ")
+        val specialtyStr = if (doctor.title.isNotBlank() && !doctor.specialty.contains(doctor.title)) {
+            "${doctor.title} - ${doctor.specialty}"
+        } else {
+            doctor.specialty
+        }
+        val appLink = "https://chat.crisp.chat/l/50ac8743-e9cf-4f46-a2f1-888d6724bd72"
+
+        val rawTemplate = if (template.isNotBlank() && template.contains("{doctor_name}")) {
+            template
+        } else if (cachedTemplate.isNotBlank() && cachedTemplate.contains("{doctor_name}")) {
+            cachedTemplate
+        } else {
+            DEFAULT_DOCTOR_DETAILS
+        }
+
+        val doctorDetails = rawTemplate
+            .replace("{doctor_name}", doctor.name)
+            .replace("{specialty}", specialtyStr)
+            .replace("{phone}", phoneStr)
+            .replace("{address}", doctor.addressLandmark)
+            .replace("{app_link}", appLink)
+            .replace("{days}", doctor.days.joinToString("، "))
+            .replace("{working_hours}", doctor.workingHoursText)
+            .replace("{hours}", doctor.workingHoursText)
+            .replace("{notes}", doctor.notes)
+
+        val footer = if (cachedFooterText.isNotBlank()) {
+            cachedFooterText
+        } else {
+            DEFAULT_FOOTER_TEXT
+        }
+
+        return "$doctorDetails\n\n$footer"
+    }
+}
+
+/**
  * Opens native dialer prefilled with number
  */
 fun dialPhoneNumber(context: Context, phoneNumber: String) {
@@ -445,22 +503,10 @@ fun dialPhoneNumber(context: Context, phoneNumber: String) {
 }
 
 /**
- * Shares doctor card text formatted cleanly
+ * Shares doctor card text formatted cleanly from Admin Panel template
  */
-fun shareDoctorCard(context: Context, doctor: Doctor) {
-    val shareBody = """
-        🩺 *بطاقة طبيب - دليل أطباء زمار* 🩺
-        ----------------------------
-        👨‍⚕️ *الاسم:* ${doctor.name}
-        📋 *الاختصاص:* ${doctor.title} - ${doctor.specialty}
-        📅 *أيام التواجد:* ${doctor.days.joinToString("، ")}
-        ⏰ *ساعات الدوام:* ${doctor.workingHoursText}
-        📍 *العنوان والمعلم:* ${doctor.addressLandmark}
-        📞 *أرقام الحجز:* ${doctor.phoneNumbers.joinToString(" | ")}
-        ${if (doctor.notes.isNotBlank()) "💡 *ملاحظات:* ${doctor.notes}\n" else ""}
-        ----------------------------
-        📲 مشاركة من تطبيق *أطباء زمار*
-    """.trimIndent()
+fun shareDoctorCard(context: Context, doctor: Doctor, template: String = "") {
+    val shareBody = DoctorShareManager.formatMessage(template, doctor)
 
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
@@ -471,16 +517,15 @@ fun shareDoctorCard(context: Context, doctor: Doctor) {
 }
 
 /**
- * Reports doctor information issue directly to WhatsApp admin
+ * Reports doctor information issue dynamically to admin via configured link or dialer
  */
 fun reportIssueToAdmin(context: Context, doctor: Doctor) {
     val message = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص الطبيب (${doctor.name} - ${doctor.specialty})، أود الإبلاغ عن ملاحظة/تعديل في (ساعات الدوام / العنوان / أرقام الهاتف): "
-    val encoded = URLEncoder.encode(message, StandardCharsets.UTF_8.toString())
-    val waUrl = "https://wa.me/9647875023922?text=$encoded"
-    try {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        Toast.makeText(context, "تعذر فتح تطبيق واتساب", Toast.LENGTH_SHORT).show()
-    }
+    executeSmartAction(
+        context = context,
+        actionInput = null,
+        actionType = "AUTO",
+        defaultMessage = message,
+        targetKey = "report_problem"
+    )
 }

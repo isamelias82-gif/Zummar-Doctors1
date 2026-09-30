@@ -287,47 +287,15 @@ fun isPhoneNumber(input: String, actionType: String = ""): Boolean {
  * - If URL -> Intent.ACTION_VIEW
  */
 fun handleBannerAction(context: Context, banner: SponsorBanner) {
-    val input = (if (banner.actionLink.isNotBlank()) banner.actionLink else banner.actionValue).trim()
+    val input = banner.effectiveActionInput
     if (input.isBlank()) {
-        if (banner.actionValue.isNotBlank()) {
-            val cleanNumber = banner.actionValue.filter { it.isDigit() || it == '+' }
-            try {
-                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanNumber")))
-            } catch (e: Exception) {
-                Toast.makeText(context, "تعذر فتح لوحة الاتصال", Toast.LENGTH_SHORT).show()
-            }
-        }
+        Toast.makeText(context, "لم يتم تحديد وسيلة التواصل للإعلان", Toast.LENGTH_SHORT).show()
         return
     }
-
-    try {
-        if (banner.actionType.equals("WHATSAPP", ignoreCase = true) || input.contains("wa.me")) {
-            val cleanNumber = input.filter { it.isDigit() }
-            val defaultMsg = "السلام عليكم، بخصوص الإعلان في تطبيق أطباء زمار..."
-            val encodedMsg = URLEncoder.encode(defaultMsg, StandardCharsets.UTF_8.toString())
-            val waUrl = if (input.startsWith("http://") || input.startsWith("https://")) {
-                input
-            } else {
-                "https://wa.me/$cleanNumber?text=$encodedMsg"
-            }
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-            context.startActivity(intent)
-        } else if (isPhoneNumber(input, banner.actionType)) {
-            val cleanNumber = input.removePrefix("tel:").trim()
-            val intent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:$cleanNumber")
-            }
-            context.startActivity(intent)
-        } else {
-            // Website URL
-            var url = input
-            if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
-                url = "https://$url"
-            }
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            context.startActivity(intent)
-        }
-    } catch (e: Exception) {
-        Toast.makeText(context, "تعذر تنفيذ الإجراء المطلوب للإعلان", Toast.LENGTH_SHORT).show()
-    }
+    routeDynamicAction(
+        context = context,
+        rawInput = input,
+        actionType = banner.actionType,
+        defaultMessage = "السلام عليكم، بخصوص الإعلان في تطبيق أطباء زمار..."
+    )
 }

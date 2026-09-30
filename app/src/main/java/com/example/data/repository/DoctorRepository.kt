@@ -80,6 +80,15 @@ class DoctorRepository(
         }
     }
 
+    private val settingsRef: DatabaseReference? by lazy {
+        try {
+            firebaseDatabase?.getReference("settings")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting settingsRef: ${e.message}")
+            null
+        }
+    }
+
     fun getAppSettingsFlow(): Flow<AppSettings> = callbackFlow {
         // Fast REST fetch & background polling engine
         val restJob = launch(Dispatchers.IO) {
@@ -96,18 +105,9 @@ class DoctorRepository(
             }
         }
 
-        val ref = appSettingsRef
-        if (ref == null) {
-            trySend(AppSettings())
-            awaitClose { restJob.cancel() }
-            return@callbackFlow
-        }
-
-        try {
-            ref.keepSynced(true)
-        } catch (e: Exception) {
-            Log.w(TAG, "keepSynced error on appSettingsRef: ${e.message}")
-        }
+        val ref1 = appSettingsRef
+        val ref2 = settingsRef
+        val footerRef = firebaseDatabase?.getReference("settings/doctor_share_footer_text")
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -116,7 +116,6 @@ class DoctorRepository(
                     trySend(settings)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing app_settings: ${e.message}")
-                    trySend(AppSettings())
                 }
             }
 
@@ -125,10 +124,34 @@ class DoctorRepository(
             }
         }
 
-        ref.addValueEventListener(listener)
+        val footerListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val text = SafeFirebaseParser.parseString(snapshot.value)
+                if (text.isNotBlank()) {
+                    com.example.ui.components.DoctorShareManager.cachedFooterText = text
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+
+        try {
+            ref1?.keepSynced(true)
+            ref1?.addValueEventListener(listener)
+            ref2?.keepSynced(true)
+            ref2?.addValueEventListener(listener)
+            footerRef?.keepSynced(true)
+            footerRef?.addValueEventListener(footerListener)
+        } catch (e: Exception) {
+            Log.w(TAG, "Listener attachment exception: ${e.message}")
+        }
+
         awaitClose {
             restJob.cancel()
-            ref.removeEventListener(listener)
+            try {
+                ref1?.removeEventListener(listener)
+                ref2?.removeEventListener(listener)
+                footerRef?.removeEventListener(footerListener)
+            } catch (e: Exception) {}
         }
     }
 
@@ -279,12 +302,12 @@ class DoctorRepository(
                 bannerId = obj.optString("banner_id", "sponsor_01"),
                 isActive = obj.optBoolean("is_active", true),
                 imagePath = obj.optString("image_path", ""),
-                actionType = obj.optString("action_type", "PHONE"),
-                actionValue = obj.optString("action_value", "07875023922"),
+                actionType = obj.optString("action_type", "AUTO"),
+                actionValue = obj.optString("action_value", ""),
                 expiryDate = obj.optString("expiry_date", "2026-12-31"),
                 title = obj.optString("title", "مجمع النور الطبي التخصصي - زمار"),
                 description = obj.optString("description", "أوقات الدوام وخدمات العيادات الاستشارية"),
-                actionLink = obj.optString("action_link", "07875023922")
+                actionLink = obj.optString("action_link", "")
             )
         } catch (e: Exception) {
             SponsorBanner.defaultBanner

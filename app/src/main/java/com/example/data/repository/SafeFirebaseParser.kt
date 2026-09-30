@@ -461,11 +461,11 @@ object SafeFirebaseParser {
         }
     }
 
-    fun parseActionButtonConfig(raw: Any?, defaultInput: String = "+9647875023922"): com.example.data.model.ActionButtonConfig {
+    fun parseActionButtonConfig(raw: Any?, defaultInput: String = ""): com.example.data.model.ActionButtonConfig {
         if (raw == null) return com.example.data.model.ActionButtonConfig(isActive = true, actionInput = defaultInput, actionType = "AUTO")
         if (raw is Map<*, *>) {
             val isActive = parseBoolean(raw["isActive"] ?: raw["is_active"] ?: raw["active"] ?: true)
-            val actionInput = parseString(raw["actionInput"] ?: raw["action_input"] ?: raw["actionValue"] ?: raw["action_value"] ?: raw["phone"] ?: raw["url"] ?: raw["link"]).ifBlank { defaultInput }
+            val actionInput = parseString(raw["actionInput"] ?: raw["action_input"] ?: raw["actionValue"] ?: raw["action_value"] ?: raw["actionLink"] ?: raw["action_link"] ?: raw["phone"] ?: raw["url"] ?: raw["link"]).ifBlank { defaultInput }
             val actionType = parseString(raw["actionType"] ?: raw["action_type"]).ifBlank { "AUTO" }
             return com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = actionInput, actionType = actionType)
         }
@@ -490,10 +490,10 @@ object SafeFirebaseParser {
         // FAB Button
         val fabRaw = map["fabButton"] ?: map["fab_button"] ?: map["fab"]
         val fabConfig = if (fabRaw != null) {
-            parseActionButtonConfig(fabRaw, "+9647875023922")
+            parseActionButtonConfig(fabRaw, "")
         } else {
             val isActive = parseBoolean(map["fabActive"] ?: map["fab_active"] ?: true)
-            val action = parseString(map["fabAction"] ?: map["fab_action"] ?: map["fabPhone"] ?: map["fab_phone"]).ifBlank { "+9647875023922" }
+            val action = parseString(map["fabAction"] ?: map["fab_action"] ?: map["fabPhone"] ?: map["fab_phone"] ?: map["fabValue"] ?: map["fab_value"] ?: map["fabLink"] ?: map["fab_link"]).trim()
             val type = parseString(map["fabActionType"] ?: map["fab_action_type"]).ifBlank { "AUTO" }
             com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
         }
@@ -501,10 +501,10 @@ object SafeFirebaseParser {
         // Report Problem
         val reportRaw = map["reportProblem"] ?: map["report_problem"] ?: map["report"]
         val reportConfig = if (reportRaw != null) {
-            parseActionButtonConfig(reportRaw, "+9647875023922")
+            parseActionButtonConfig(reportRaw, "")
         } else {
             val isActive = parseBoolean(map["reportActive"] ?: map["report_active"] ?: true)
-            val action = parseString(map["reportAction"] ?: map["report_action"] ?: map["reportPhone"] ?: map["report_link"]).ifBlank { "+9647875023922" }
+            val action = parseString(map["reportAction"] ?: map["report_action"] ?: map["reportPhone"] ?: map["report_phone"] ?: map["report_link"] ?: map["reportLink"] ?: map["reportValue"] ?: map["report_value"]).trim()
             val type = parseString(map["reportActionType"] ?: map["report_action_type"]).ifBlank { "AUTO" }
             com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
         }
@@ -512,12 +512,25 @@ object SafeFirebaseParser {
         // Contact Us
         val contactRaw = map["contactUs"] ?: map["contact_us"] ?: map["contact"]
         val contactConfig = if (contactRaw != null) {
-            parseActionButtonConfig(contactRaw, "+9647875023922")
+            parseActionButtonConfig(contactRaw, "")
         } else {
             val isActive = parseBoolean(map["contactActive"] ?: map["contact_active"] ?: true)
-            val action = parseString(map["contactAction"] ?: map["contact_action"] ?: map["contactPhone"] ?: map["contact_link"]).ifBlank { "+9647875023922" }
+            val action = parseString(map["contactAction"] ?: map["contact_action"] ?: map["contactPhone"] ?: map["contact_phone"] ?: map["contact_link"] ?: map["contactLink"] ?: map["actionValue"] ?: map["action_value"] ?: map["actionLink"] ?: map["action_link"]).trim()
             val type = parseString(map["contactActionType"] ?: map["contact_action_type"]).ifBlank { "AUTO" }
             com.example.data.model.ActionButtonConfig(isActive = isActive, actionInput = action, actionType = type)
+        }
+
+        // Doctor Share Message Text Template & Footer Text
+        val doctorShareText = parseString(
+            map["doctor_share_text"] ?: map["doctorShareText"] ?: map["doctor_share_template"] ?: map["doctorShareTemplate"]
+        ).trim()
+        val doctorShareFooterText = parseString(
+            map["doctor_share_footer_text"] ?: map["doctorShareFooterText"] ?: map["doctor_share_text"]
+        ).trim()
+        if (doctorShareFooterText.isNotBlank()) {
+            com.example.ui.components.DoctorShareManager.cachedFooterText = doctorShareFooterText
+        } else if (doctorShareText.isNotBlank()) {
+            com.example.ui.components.DoctorShareManager.cachedFooterText = doctorShareText
         }
 
         return com.example.data.model.AppSettings(
@@ -525,7 +538,9 @@ object SafeFirebaseParser {
             laboratoriesEnabled = labEnabled,
             fabButton = fabConfig,
             reportProblem = reportConfig,
-            contactUs = contactConfig
+            contactUs = contactConfig,
+            doctorShareText = doctorShareText,
+            doctorShareFooterText = doctorShareFooterText.ifBlank { doctorShareText }
         )
     }
 

@@ -3,8 +3,18 @@ package com.example.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -100,6 +110,8 @@ fun DoctorDirectoryScreen(
 ) {
     val context = LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
+    var isSpecialtyMenuExpanded by remember { mutableStateOf(false) }
+    var isDayMenuExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     Box(
@@ -176,94 +188,6 @@ fun DoctorDirectoryScreen(
                                             color = MintCyan
                                         )
                                     )
-                                }
-                            }
-
-                            // Dynamic Quick Action Chips (Contact Us & Report Problem)
-                            if (appSettings.contactUs.isActive || appSettings.reportProblem.isActive) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (appSettings.contactUs.isActive) {
-                                        Surface(
-                                            shape = RoundedCornerShape(20.dp),
-                                            color = Color.White.copy(alpha = 0.18f),
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                                            modifier = Modifier
-                                                .clickable {
-                                                    executeSmartAction(
-                                                        context = context,
-                                                        actionInput = appSettings.contactUs.effectiveInput,
-                                                        actionType = appSettings.contactUs.actionType,
-                                                        defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود التواصل معكم بخصوص..."
-                                                    )
-                                                }
-                                                .testTag("btn_contact_us_header")
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.HeadsetMic,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(5.dp))
-                                                Text(
-                                                    text = "تواصل معنا",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        color = Color.White,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 11.sp
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (appSettings.reportProblem.isActive) {
-                                        Surface(
-                                            shape = RoundedCornerShape(20.dp),
-                                            color = Color(0xFFEF4444).copy(alpha = 0.25f),
-                                            border = BorderStroke(1.dp, Color(0xFFFCA5A5).copy(alpha = 0.5f)),
-                                            modifier = Modifier
-                                                .clickable {
-                                                    executeSmartAction(
-                                                        context = context,
-                                                        actionInput = appSettings.reportProblem.effectiveInput,
-                                                        actionType = appSettings.reportProblem.actionType,
-                                                        defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود الإبلاغ عن مشكلة/تحديث في بيانات..."
-                                                    )
-                                                }
-                                                .testTag("btn_report_problem_header")
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.ReportProblem,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFFFFD166),
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(5.dp))
-                                                Text(
-                                                    text = "إبلاغ عن مشكلة",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        color = Color.White,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 11.sp
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
                             }
 
@@ -361,37 +285,159 @@ fun DoctorDirectoryScreen(
                     }
                 }
 
-                // Day Selector Bar (Top Navigation Bar)
+                // Primary Filter Buttons Section ("كافة الاختصاصات" & "يوم الأسبوع")
                 item {
-                    Text(
-                        text = "فلترة حسب يوم التواجد:",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = TextSecondary
-                        ),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                    DaySelectorBar(
-                        selectedDay = selectedDay,
-                        todayArabic = currentDayArabic,
-                        onDaySelected = onDaySelected
-                    )
-                }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // 1. "كافة الاختصاصات" (All Specialties) Primary Filter Button with Dropdown Menu
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { isSpecialtyMenuExpanded = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("filter_spec_primary_btn"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (selectedSpecialty != null) TealPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                                        contentColor = if (selectedSpecialty != null) TealPrimaryDark else TextPrimary
+                                    ),
+                                    border = BorderStroke(1.5.dp, if (selectedSpecialty != null) TealPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalHospital,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = TealPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = selectedSpecialty ?: "كافة الاختصاصات",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Start
+                                    )
+                                    Icon(
+                                        imageVector = if (isSpecialtyMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
 
-                // Specialty Filter Row
-                item {
-                    Text(
-                        text = "فلترة حسب الاختصاص الطبي:",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = TextSecondary
-                        ),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                    SpecialtyFilterRow(
-                        selectedSpecialty = selectedSpecialty,
-                        onSpecialtySelected = onSpecialtySelected
-                    )
+                                DropdownMenu(
+                                    expanded = isSpecialtyMenuExpanded,
+                                    onDismissRequest = { isSpecialtyMenuExpanded = false },
+                                    modifier = Modifier.fillMaxWidth(0.8f)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("كافة الاختصاصات", fontWeight = if (selectedSpecialty == null) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = {
+                                            onSpecialtySelected(null)
+                                            isSpecialtyMenuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            if (selectedSpecialty == null) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = TealPrimary)
+                                            }
+                                        }
+                                    )
+                                    Doctor.ALL_SPECIALTIES.forEach { specialty ->
+                                        val isSelected = selectedSpecialty == specialty
+                                        DropdownMenuItem(
+                                            text = { Text(specialty, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                            onClick = {
+                                                onSpecialtySelected(specialty)
+                                                isSpecialtyMenuExpanded = false
+                                            },
+                                            leadingIcon = {
+                                                if (isSelected) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = TealPrimary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 2. "يوم الأسبوع" (Day of the Week) Primary Filter Button with DropdownMenu
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { isDayMenuExpanded = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("filter_day_primary_btn"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (selectedDay != null) TealPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                                        contentColor = if (selectedDay != null) TealPrimaryDark else TextPrimary
+                                    ),
+                                    border = BorderStroke(1.5.dp, if (selectedDay != null) TealPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = TealPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (selectedDay != null) "يوم: $selectedDay" else "يوم الأسبوع",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Start
+                                    )
+                                    Icon(
+                                        imageVector = if (isDayMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = isDayMenuExpanded,
+                                    onDismissRequest = { isDayMenuExpanded = false },
+                                    modifier = Modifier.fillMaxWidth(0.8f)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("جميع الأيام", fontWeight = if (selectedDay == null) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = {
+                                            onDaySelected(null)
+                                            isDayMenuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            if (selectedDay == null) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = TealPrimary)
+                                            }
+                                        }
+                                    )
+                                    Doctor.ALL_DAYS.forEach { day ->
+                                        val isSelected = selectedDay == day
+                                        val isToday = day == currentDayArabic
+                                        DropdownMenuItem(
+                                            text = { Text(if (isToday) "$day (اليوم)" else day, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                            onClick = {
+                                                onDaySelected(day)
+                                                isDayMenuExpanded = false
+                                            },
+                                            leadingIcon = {
+                                                if (isSelected) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = TealPrimary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Results count badge & dynamic sorting note
@@ -485,6 +531,7 @@ fun DoctorDirectoryScreen(
                             doctor = doctor,
                             currentDayArabic = currentDayArabic,
                             selectedDay = selectedDay,
+                            shareTemplate = appSettings.doctorShareText,
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -529,19 +576,22 @@ fun DoctorDirectoryScreen(
                                                     context = context,
                                                     actionInput = appSettings.contactUs.effectiveInput,
                                                     actionType = appSettings.contactUs.actionType,
-                                                    defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار..."
+                                                    defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود التواصل معكم بخصوص...",
+                                                    targetKey = "contact_us"
                                                 )
                                             },
-                                            modifier = Modifier.weight(1f),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("btn_bottom_contact_us"),
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Call,
+                                                imageVector = Icons.Default.HeadsetMic,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("اتصل بالإدارة", style = MaterialTheme.typography.labelMedium)
+                                            Text("تواصل معنا", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
                                         }
                                     }
 
@@ -552,10 +602,13 @@ fun DoctorDirectoryScreen(
                                                     context = context,
                                                     actionInput = appSettings.reportProblem.effectiveInput,
                                                     actionType = appSettings.reportProblem.actionType,
-                                                    defaultMessage = "السلام عليكم، أود الإبلاغ عن مشكلة في تطبيق أطباء زمار..."
+                                                    defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود الإبلاغ عن مشكلة/تحديث في بيانات...",
+                                                    targetKey = "report_problem"
                                                 )
                                             },
-                                            modifier = Modifier.weight(1f),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("btn_bottom_report_problem"),
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Icon(
@@ -564,7 +617,7 @@ fun DoctorDirectoryScreen(
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("إبلاغ عن خطأ", style = MaterialTheme.typography.labelMedium)
+                                            Text("إبلاغ عن مشكلة", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
                                         }
                                     }
                                 }

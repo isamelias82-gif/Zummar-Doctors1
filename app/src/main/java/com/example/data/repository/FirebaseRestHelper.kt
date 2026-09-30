@@ -70,13 +70,51 @@ object FirebaseRestHelper {
     }
 
     suspend fun fetchAppSettings(): AppSettings? {
-        val json = getJson("app_settings") ?: return null
-        return try {
-            val obj = JSONObject(json)
-            val pharm = obj.optBoolean("pharmacies_enabled", true)
-            val lab = obj.optBoolean("laboratories_enabled", true)
-            AppSettings(pharmaciesEnabled = pharm, laboratoriesEnabled = lab)
+        try {
+            val footerJson = getJson("settings/doctor_share_footer_text")
+            if (footerJson != null && footerJson.isNotBlank() && footerJson != "null") {
+                val cleanFooter = footerJson.trim('"')
+                if (cleanFooter.isNotBlank()) {
+                    com.example.ui.components.DoctorShareManager.cachedFooterText = cleanFooter
+                }
+            }
+        } catch (e: Exception) {}
+
+        val jsonAppSettings = getJson("app_settings")
+        if (jsonAppSettings != null && jsonAppSettings.isNotBlank() && jsonAppSettings != "null") {
+            val parsed = SafeFirebaseParser.parseAppSettingsFromJson(jsonAppSettings)
+            if (parsed != null) return parsed
+        }
+        val jsonSettings = getJson("settings")
+        if (jsonSettings != null && jsonSettings.isNotBlank() && jsonSettings != "null") {
+            return SafeFirebaseParser.parseAppSettingsFromJson(jsonSettings)
+        }
+        return null
+    }
+
+    /**
+     * Direct one-shot fetch for contact/action value from RTDB
+     */
+    suspend fun fetchLatestActionValue(actionKey: String = "contact_us"): String? = withContext(Dispatchers.IO) {
+        try {
+            val appSettings = fetchAppSettings()
+            if (appSettings != null) {
+                val candidate = when (actionKey) {
+                    "contact_us", "contact", "contactUs" -> appSettings.contactUs.effectiveInput
+                    "report_problem", "report", "reportProblem" -> appSettings.reportProblem.effectiveInput
+                    "fab_button", "fab", "fabButton" -> appSettings.fabButton.effectiveInput
+                    else -> appSettings.contactUs.effectiveInput
+                }
+                if (candidate.isNotBlank()) return@withContext candidate
+            }
+
+            val sponsor = fetchSponsorBanner()
+            if (sponsor != null && sponsor.effectiveActionInput.isNotBlank()) {
+                return@withContext sponsor.effectiveActionInput
+            }
+            null
         } catch (e: Exception) {
+            Log.e(TAG, "Error in fetchLatestActionValue: ${e.message}")
             null
         }
     }

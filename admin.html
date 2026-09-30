@@ -555,6 +555,56 @@
                 </div>
             </div>
 
+            <!-- CARD 4: GLOBAL SHARE FOOTER TEXT SETTING -->
+            <div id="share-text-card" class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-inner">
+                            <i class="fa-solid fa-share-nodes"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">النص الموحد لمشاركة التطبيق/الأطباء (Global Share Footer Text)</h2>
+                            <p class="text-xs text-gray-500">النص الموحد الذي يتم إضافته تلقائياً أسفل مشاركة أي طبيب في التطبيق. التعديل هنا لمرة واحدة يحدّث تذييل المشاركة لجميع الأطباء فوراً.</p>
+                        </div>
+                    </div>
+                    <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full border border-indigo-100 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-indigo-600"></i> مزامنة فورية ⚡
+                    </span>
+                </div>
+
+                <form id="share-settings-form" onsubmit="saveDoctorShareSettings(event)" class="space-y-5">
+                    <div class="space-y-2">
+                        <label for="doctor-share-footer-text" class="block text-xs font-bold text-gray-700">
+                            النص الموحد لمشاركة التطبيق/الأطباء (Global Share Footer Text) *
+                        </label>
+                        <textarea id="doctor-share-footer-text" rows="5" dir="rtl" oninput="updateShareMessagePreview()"
+                                  class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-sans leading-relaxed transition resize-y"
+                                  placeholder="اكتب هنا النص الموحد لمشاركة الأطباء والتطبيق..."></textarea>
+                    </div>
+
+                    <!-- Live Message Preview Box -->
+                    <div class="bg-gradient-to-br from-emerald-50/50 to-teal-50/50 p-5 rounded-2xl border border-emerald-200/80 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                                <i class="fa-brands fa-whatsapp text-emerald-600 text-base"></i>
+                                معاينة حية لشكل رسالة المشاركة في واتساب (تفاصيل الطبيب التلقائية + النص الموحد):
+                            </span>
+                            <span class="text-[10px] text-emerald-700 font-bold bg-white px-2 py-0.5 rounded-lg border border-emerald-200">معاينة فورية</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-emerald-100 shadow-inner font-sans text-xs text-gray-800 whitespace-pre-wrap leading-relaxed select-text" id="share-message-live-preview">
+                            جاري تجهيز المعاينة...
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" id="share-settings-save-btn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span id="share-settings-btn-text">حفظ وتحديث النص الموحد للمشاركة</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
         </section>
 
         <!-- TAB 1: DOCTORS SECTION -->
@@ -1215,6 +1265,16 @@
                 if (contactActiveEl) contactActiveEl.checked = contactActive;
                 if (contactTypeEl) contactTypeEl.value = contactType;
                 if (contactInputEl) contactInputEl.value = contactInput;
+
+                // 4. Global Share Footer Text listener (/settings/doctor_share_footer_text)
+                rtdb.ref('settings/doctor_share_footer_text').on('value', (snapshot) => {
+                    const footerText = snapshot.val() || '';
+                    const footerEl = document.getElementById('doctor-share-footer-text');
+                    if (footerEl && document.activeElement !== footerEl) {
+                        footerEl.value = footerText || DEFAULT_GLOBAL_SHARE_FOOTER;
+                        updateShareMessagePreview();
+                    }
+                });
             });
 
             // Static Banner listener
@@ -1341,7 +1401,10 @@
                     contact_action: contactInput
                 };
 
-                await rtdb.ref('app_settings').update(payload);
+                await Promise.all([
+                    rtdb.ref('app_settings').update(payload),
+                    rtdb.ref('settings').update(payload)
+                ]);
                 showToast('✅ تم حفظ جميع الأزرار والروابط وتحديثها فوراً في تطبيق الأندرويد!', 'success');
             } catch (err) {
                 console.error('Error saving app actions:', err);
@@ -1349,6 +1412,42 @@
             } finally {
                 btn.disabled = false;
                 btnText.innerText = 'حفظ إعدادات الروابط والأزرار الموحدة';
+            }
+        }
+
+        // Global Share Footer Text Handling
+        const DEFAULT_GLOBAL_SHARE_FOOTER = `📲 للتواصل وحجز المواعيد، تحميل تطبيق أطباء زمار:
+https://chat.crisp.chat/l/50ac8743-e9cf-4f46-a2f1-888d6724bd72`;
+
+        function updateShareMessagePreview() {
+            const footerText = document.getElementById('doctor-share-footer-text')?.value || DEFAULT_GLOBAL_SHARE_FOOTER;
+            const sampleDoctor = `🩺 *بطاقة طبيب - دليل أطباء زمار* 🩺\n----------------------------\n👨‍⚕️ *الاسم:* د. أحمد محمد\n📋 *الاختصاص:* طب الأطفال\n📍 *العنوان:* شارع الأطباء، قرب عيادة الشفاء\n📞 *أرقام الحجز:* 07800000000`;
+            const preview = `${sampleDoctor}\n\n${footerText}`;
+            const previewEl = document.getElementById('share-message-live-preview');
+            if (previewEl) previewEl.innerText = preview;
+        }
+
+        async function saveDoctorShareSettings(e) {
+            e.preventDefault();
+            const btn = document.getElementById('share-settings-save-btn');
+            const btnText = document.getElementById('share-settings-btn-text');
+            btn.disabled = true;
+            btnText.innerText = 'جاري الحفظ...';
+
+            try {
+                const footerText = document.getElementById('doctor-share-footer-text').value.trim();
+                await Promise.all([
+                    rtdb.ref('settings/doctor_share_footer_text').set(footerText),
+                    rtdb.ref('app_settings/doctor_share_footer_text').set(footerText),
+                    rtdb.ref('app_settings').update({ doctor_share_footer_text: footerText })
+                ]);
+                showToast('✅ تم حفظ النص الموحد لمشاركة التطبيق/الأطباء بنجاح وتحديثه في التطبيق!', 'success');
+            } catch (err) {
+                console.error('Error saving share footer text:', err);
+                showToast('❌ خطأ أثناء الحفظ: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'حفظ وتحديث النص الموحد للمشاركة';
             }
         }
 

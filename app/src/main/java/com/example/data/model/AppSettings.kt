@@ -2,7 +2,7 @@ package com.example.data.model
 
 data class ActionButtonConfig(
     val isActive: Boolean = true,
-    val actionInput: String = "+9647875023922",
+    val actionInput: String = "",
     val actionType: String = "AUTO" // "AUTO", "PHONE", "URL", "WHATSAPP"
 ) {
     val effectiveInput: String
@@ -14,17 +14,19 @@ data class AppSettings(
     val laboratoriesEnabled: Boolean = true,
     val fabButton: ActionButtonConfig = ActionButtonConfig(
         isActive = true,
-        actionInput = "+9647875023922",
+        actionInput = "",
         actionType = "AUTO"
     ),
     val reportProblem: ActionButtonConfig = ActionButtonConfig(
         isActive = true,
-        actionInput = "+9647875023922",
+        actionInput = "",
         actionType = "AUTO"
     ),
     val contactUs: ActionButtonConfig = ActionButtonConfig(
         isActive = true,
-        actionInput = "+9647875023922",
+        actionInput = "",
         actionType = "AUTO"
-    )
+    ),
+    val doctorShareText: String = "",
+    val doctorShareFooterText: String = ""
 )

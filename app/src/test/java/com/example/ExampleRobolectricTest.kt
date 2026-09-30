@@ -65,6 +65,7 @@ class ExampleRobolectricTest {
     assertEquals(true, isPhoneNumber("07800000000", "PHONE"))
 
     // URLs (triggers Intent.ACTION_VIEW)
+    assertEquals(false, isPhoneNumber("https://chat.crisp.chat/l/50ac8743-e9cf-4f46-a2f1-888d6724bd72", "AUTO"))
     assertEquals(false, isPhoneNumber("https://google.com", "AUTO"))
     assertEquals(false, isPhoneNumber("http://example.com/clinic", "AUTO"))
     assertEquals(false, isPhoneNumber("www.alnoor.iq", "AUTO"))
