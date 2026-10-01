@@ -86,7 +86,7 @@ fun TopSponsorshipBanner(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 5.2f)
+                .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp))
                 .clickable {
                     handleBannerAction(context, banner)
@@ -248,6 +248,28 @@ fun TopSponsorshipBanner(
                             )
                         )
                     }
+                }
+            }
+
+            // Page Indicator Dots near the bottom edge inside/overlaying the banner image
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(7) { index ->
+                    val isActive = index == 4
+                    Box(
+                        modifier = Modifier
+                            .size(if (isActive) 12.dp else 6.dp, 6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                if (isActive) Color(0xFF00BFA5) // Primary teal/cyan brand color
+                                else Color.White.copy(alpha = 0.5f)
+                            )
+                    )
                 }
             }
         }

@@ -43,7 +43,7 @@ class SupportWebActivity : ComponentActivity() {
         const val EXTRA_URL = "extra_url"
 
         fun start(context: Context, url: String? = null) {
-            val targetUrl = SupportChatManager.resolveDynamicChatUrl(url)
+            val targetUrl = SupportChatManager.resolveDynamicChatUrl(url).ifBlank { CRISP_URL }
             val intent = Intent(context, SupportWebActivity::class.java).apply {
                 putExtra(EXTRA_URL, targetUrl)
                 if (context !is ComponentActivity) {
@@ -62,7 +62,7 @@ class SupportWebActivity : ComponentActivity() {
         window.setBackgroundDrawableResource(android.R.color.white)
 
         val rawUrl = intent.getStringExtra(EXTRA_URL)
-        val targetUrl = SupportChatManager.resolveDynamicChatUrl(rawUrl)
+        val targetUrl = SupportChatManager.resolveDynamicChatUrl(rawUrl).ifBlank { CRISP_URL }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -192,10 +192,6 @@ class SupportWebActivity : ComponentActivity() {
                                         }
 
                                         // 2. Configure Clients & Rendering
-                                        webChromeClient = WebChromeClient().apply {
-                                            // Handle progress via custom callback or leave default
-                                        }
-
                                         webChromeClient = object : WebChromeClient() {
                                             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                                 progress = newProgress / 100f
@@ -205,13 +201,23 @@ class SupportWebActivity : ComponentActivity() {
                                             }
                                         }
 
+                                        // 3. Proper Link Navigation via WebViewClient
                                         webViewClient = object : WebViewClient() {
                                             override fun shouldOverrideUrlLoading(
                                                 view: WebView?,
                                                 request: WebResourceRequest?
                                             ): Boolean {
-                                                val target = request?.url?.toString() ?: return false
-                                                return handleUrl(ctx, target)
+                                                val url = request?.url?.toString() ?: return false
+                                                if (url.contains("crisp.chat") || url.contains("crisp.help") || url.contains("go.crisp.chat")) {
+                                                    return false // Keep inside WebView
+                                                }
+                                                return try {
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                                    view?.context?.startActivity(intent)
+                                                    true
+                                                } catch (e: Exception) {
+                                                    true
+                                                }
                                             }
 
                                             @Deprecated("Deprecated in Java")
@@ -220,20 +226,16 @@ class SupportWebActivity : ComponentActivity() {
                                                 url: String?
                                             ): Boolean {
                                                 if (url == null) return false
-                                                return handleUrl(ctx, url)
-                                            }
-
-                                            private fun handleUrl(context: Context, target: String): Boolean {
-                                                if (target.startsWith("tel:") || target.startsWith("whatsapp:") ||
-                                                    target.startsWith("mailto:") || target.startsWith("sms:") ||
-                                                    target.startsWith("intent:")
-                                                ) {
-                                                    try {
-                                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                                                    } catch (_: Exception) {}
-                                                    return true
+                                                if (url.contains("crisp.chat") || url.contains("crisp.help") || url.contains("go.crisp.chat")) {
+                                                    return false // Keep inside WebView
                                                 }
-                                                return false
+                                                return try {
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                                    view?.context?.startActivity(intent)
+                                                    true
+                                                } catch (e: Exception) {
+                                                    true
+                                                }
                                             }
 
                                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -298,7 +300,7 @@ class SupportWebActivity : ComponentActivity() {
         }
     }
 
-    // 3. Proper Lifecycle Handling
+    // Lifecycle Handling
     override fun onResume() {
         super.onResume()
         webView?.onResume()
