@@ -21,6 +21,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -58,6 +59,8 @@ class SupportWebActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setBackgroundDrawableResource(android.R.color.white)
+
         val rawUrl = intent.getStringExtra(EXTRA_URL)
         val targetUrl = SupportChatManager.resolveDynamicChatUrl(rawUrl)
 
@@ -78,9 +81,13 @@ class SupportWebActivity : ComponentActivity() {
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.White
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White)
+                    ) {
                         // Top Bar
                         Surface(
                             color = TealPrimaryDark,
@@ -130,21 +137,27 @@ class SupportWebActivity : ComponentActivity() {
                         }
 
                         // Native Android WebView with DOM Storage & JavaScript enabled
-                        Box(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .background(Color.White)
+                        ) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
                                         this@SupportWebActivity.webView = this
 
-                                        // Ensure hardware acceleration for smooth 60fps rendering of Crisp DOM Storage & Canvas
+                                        // Set white background to prevent black or blank screens
+                                        setBackgroundColor(android.graphics.Color.WHITE)
+
+                                        // Ensure hardware acceleration on physical devices; fallback to software on emulator if needed
                                         val isEmulator = Build.FINGERPRINT.contains("generic") ||
                                                 Build.MODEL.contains("google_sdk") ||
                                                 Build.HARDWARE.contains("goldfish") ||
                                                 Build.HARDWARE.contains("ranchu")
                                         if (isEmulator) {
                                             setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-                                        } else {
-                                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
                                         }
 
                                         layoutParams = ViewGroup.LayoutParams(
@@ -152,27 +165,42 @@ class SupportWebActivity : ComponentActivity() {
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
 
-                                        // CookieManager: enable 3rd party cookies for Crisp WebSocket/Storage auth
+                                        // CookieManager: enable 3rd party cookies for Crisp session and socket
                                         try {
                                             val cookieManager = CookieManager.getInstance()
                                             cookieManager.setAcceptCookie(true)
                                             cookieManager.setAcceptThirdPartyCookies(this, true)
                                         } catch (_: Exception) {}
 
+                                        // 1. Enable Required Web Settings & 3. Custom User Agent Fix
                                         settings.apply {
                                             javaScriptEnabled = true
-                                            domStorageEnabled = true
+                                            domStorageEnabled = true // CRITICAL for Crisp
                                             @Suppress("DEPRECATION")
                                             databaseEnabled = true
+                                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                            
+                                            // Remove "; wv" from userAgentString so Crisp/Cloudflare does not block the webview client
+                                            userAgentString = userAgentString.replace("; wv", "")
+
                                             allowFileAccess = true
                                             allowContentAccess = true
                                             setSupportMultipleWindows(true)
                                             javaScriptCanOpenWindowsAutomatically = true
                                             loadsImagesAutomatically = true
-                                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                                             cacheMode = WebSettings.LOAD_DEFAULT
                                             useWideViewPort = true
                                             loadWithOverviewMode = true
+                                        }
+
+                                        // 2. Configure Clients & Rendering
+                                        webChromeClient = object : WebChromeClient() {
+                                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                                progress = newProgress / 100f
+                                                if (newProgress >= 100) {
+                                                    isLoading = false
+                                                }
+                                            }
                                         }
 
                                         webViewClient = object : WebViewClient() {
@@ -181,7 +209,7 @@ class SupportWebActivity : ComponentActivity() {
                                                 request: WebResourceRequest?
                                             ): Boolean {
                                                 val target = request?.url?.toString() ?: return false
-                                                return handleUrl(view, target)
+                                                return handleUrl(target)
                                             }
 
                                             @Deprecated("Deprecated in Java")
@@ -190,10 +218,10 @@ class SupportWebActivity : ComponentActivity() {
                                                 url: String?
                                             ): Boolean {
                                                 if (url == null) return false
-                                                return handleUrl(view, url)
+                                                return handleUrl(url)
                                             }
 
-                                            private fun handleUrl(view: WebView?, target: String): Boolean {
+                                            private fun handleUrl(target: String): Boolean {
                                                 if (target.startsWith("tel:") || target.startsWith("whatsapp:") ||
                                                     target.startsWith("mailto:") || target.startsWith("sms:") ||
                                                     target.startsWith("intent:")
@@ -235,7 +263,6 @@ class SupportWebActivity : ComponentActivity() {
                                                 view: WebView?,
                                                 detail: RenderProcessGoneDetail?
                                             ): Boolean {
-                                                // CRITICAL: Return true so the host app process is NOT killed on renderer crash
                                                 val failedUrl = view?.url ?: targetUrl
                                                 try {
                                                     (view?.parent as? ViewGroup)?.removeView(view)
@@ -253,15 +280,6 @@ class SupportWebActivity : ComponentActivity() {
                                                 }
                                                 finish()
                                                 return true
-                                            }
-                                        }
-
-                                        webChromeClient = object : WebChromeClient() {
-                                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                                progress = newProgress / 100f
-                                                if (newProgress >= 100) {
-                                                    isLoading = false
-                                                }
                                             }
                                         }
 
