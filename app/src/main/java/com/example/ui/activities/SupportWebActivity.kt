@@ -3,12 +3,16 @@ package com.example.ui.activities
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -20,7 +24,9 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.ui.theme.TealPrimaryDark
+import com.example.util.SupportChatManager
 
 class SupportWebActivity : ComponentActivity() {
     companion object {
@@ -35,13 +42,12 @@ class SupportWebActivity : ComponentActivity() {
         const val EXTRA_URL = "extra_url"
 
         fun start(context: Context, url: String? = null) {
-            val targetUrl = if (url.isNullOrBlank()) {
-                com.example.util.SupportChatManager.cachedCrispUrl.ifBlank { CRISP_URL }
-            } else {
-                url.trim()
-            }
+            val targetUrl = SupportChatManager.resolveDynamicChatUrl(url)
             val intent = Intent(context, SupportWebActivity::class.java).apply {
                 putExtra(EXTRA_URL, targetUrl)
+                if (context !is ComponentActivity) {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
             }
             context.startActivity(intent)
         }
@@ -52,7 +58,8 @@ class SupportWebActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val url = intent.getStringExtra(EXTRA_URL) ?: CRISP_URL
+        val rawUrl = intent.getStringExtra(EXTRA_URL)
+        val targetUrl = SupportChatManager.resolveDynamicChatUrl(rawUrl)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -66,6 +73,9 @@ class SupportWebActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
+                var isLoading by remember { mutableStateOf(true) }
+                var progress by remember { mutableFloatStateOf(0f) }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -91,29 +101,64 @@ class SupportWebActivity : ComponentActivity() {
                                         color = Color.White
                                     )
                                 )
-                                IconButton(onClick = { finish() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "إغلاق",
-                                        tint = Color.White
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { webView?.reload() }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "تحديث",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    IconButton(onClick = { finish() }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "إغلاق",
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Software-rendered WebView protected against renderer crashes
+                        if (isLoading) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color.White,
+                                trackColor = TealPrimaryDark.copy(alpha = 0.4f)
+                            )
+                        }
+
+                        // Native Android WebView with DOM Storage & JavaScript enabled
                         Box(modifier = Modifier.weight(1f)) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
                                         this@SupportWebActivity.webView = this
-                                        // Disable hardware GPU acceleration to avoid Mesa rendernode crash in emulators
-                                        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+
+                                        // Ensure hardware acceleration for smooth 60fps rendering of Crisp DOM Storage & Canvas
+                                        val isEmulator = Build.FINGERPRINT.contains("generic") ||
+                                                Build.MODEL.contains("google_sdk") ||
+                                                Build.HARDWARE.contains("goldfish") ||
+                                                Build.HARDWARE.contains("ranchu")
+                                        if (isEmulator) {
+                                            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                                        } else {
+                                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                                        }
 
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
+
+                                        // CookieManager: enable 3rd party cookies for Crisp WebSocket/Storage auth
+                                        try {
+                                            val cookieManager = CookieManager.getInstance()
+                                            cookieManager.setAcceptCookie(true)
+                                            cookieManager.setAcceptThirdPartyCookies(this, true)
+                                        } catch (_: Exception) {}
+
                                         settings.apply {
                                             javaScriptEnabled = true
                                             domStorageEnabled = true
@@ -131,31 +176,59 @@ class SupportWebActivity : ComponentActivity() {
                                         }
 
                                         webViewClient = object : WebViewClient() {
-                                            @Deprecated("Deprecated in Java")
-                                            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                                return handleUrl(view, url)
-                                            }
-
                                             override fun shouldOverrideUrlLoading(
                                                 view: WebView?,
                                                 request: WebResourceRequest?
                                             ): Boolean {
-                                                return handleUrl(view, request?.url?.toString())
+                                                val target = request?.url?.toString() ?: return false
+                                                return handleUrl(view, target)
                                             }
 
-                                            private fun handleUrl(view: WebView?, targetUrl: String?): Boolean {
-                                                if (targetUrl == null) return false
-                                                if (targetUrl.startsWith("tel:") || targetUrl.startsWith("whatsapp:") || targetUrl.startsWith("mailto:")) {
+                                            @Deprecated("Deprecated in Java")
+                                            override fun shouldOverrideUrlLoading(
+                                                view: WebView?,
+                                                url: String?
+                                            ): Boolean {
+                                                if (url == null) return false
+                                                return handleUrl(view, url)
+                                            }
+
+                                            private fun handleUrl(view: WebView?, target: String): Boolean {
+                                                if (target.startsWith("tel:") || target.startsWith("whatsapp:") ||
+                                                    target.startsWith("mailto:") || target.startsWith("sms:") ||
+                                                    target.startsWith("intent:")
+                                                ) {
                                                     try {
-                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
+                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
                                                     } catch (_: Exception) {}
                                                     return true
                                                 }
-                                                // Keep all link navigations inside the WebView
+                                                // Keep all HTTP/HTTPS links and redirects inside this native WebView
+                                                return false
+                                            }
+
+                                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                                super.onPageStarted(view, url, favicon)
+                                                isLoading = true
+                                            }
+
+                                            override fun onPageFinished(view: WebView?, url: String?) {
+                                                super.onPageFinished(view, url)
+                                                isLoading = false
                                                 try {
-                                                    view?.loadUrl(targetUrl)
+                                                    CookieManager.getInstance().flush()
                                                 } catch (_: Exception) {}
-                                                return true
+                                            }
+
+                                            override fun onReceivedError(
+                                                view: WebView?,
+                                                request: WebResourceRequest?,
+                                                error: WebResourceError?
+                                            ) {
+                                                super.onReceivedError(view, request, error)
+                                                if (request?.isForMainFrame == true) {
+                                                    isLoading = false
+                                                }
                                             }
 
                                             override fun onRenderProcessGone(
@@ -163,14 +236,13 @@ class SupportWebActivity : ComponentActivity() {
                                                 detail: RenderProcessGoneDetail?
                                             ): Boolean {
                                                 // CRITICAL: Return true so the host app process is NOT killed on renderer crash
-                                                val failedUrl = view?.url ?: url
+                                                val failedUrl = view?.url ?: targetUrl
                                                 try {
                                                     (view?.parent as? ViewGroup)?.removeView(view)
                                                     view?.destroy()
                                                 } catch (_: Exception) {}
                                                 this@SupportWebActivity.webView = null
 
-                                                // Fallback safely to CustomTabs or External Browser
                                                 try {
                                                     val builder = CustomTabsIntent.Builder()
                                                     builder.build().launchUrl(this@SupportWebActivity, Uri.parse(failedUrl))
@@ -184,10 +256,17 @@ class SupportWebActivity : ComponentActivity() {
                                             }
                                         }
 
-                                        webChromeClient = WebChromeClient()
+                                        webChromeClient = object : WebChromeClient() {
+                                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                                progress = newProgress / 100f
+                                                if (newProgress >= 100) {
+                                                    isLoading = false
+                                                }
+                                            }
+                                        }
 
                                         try {
-                                            loadUrl(url)
+                                            loadUrl(targetUrl)
                                         } catch (_: Exception) {}
                                     }
                                 },

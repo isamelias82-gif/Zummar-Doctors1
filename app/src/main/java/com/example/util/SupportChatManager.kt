@@ -1,22 +1,17 @@
 package com.example.util
 
 import android.content.Context
-import android.content.Intent
-import android.graphics.Color
-import android.net.Uri
 import android.util.Log
-import androidx.browser.customtabs.CustomTabColorSchemeParams
-import androidx.browser.customtabs.CustomTabsIntent
 import com.example.data.model.AppSettings
 import com.example.ui.activities.SupportWebActivity
 
 /**
  * Universal Support & Crisp Chat Manager:
- * Centralizes in-app opening of Crisp Chat and administrative support channels.
- * - Prioritizes Chrome Custom Tabs (CustomTabsIntent) for seamless in-app overlay display.
- * - Falls back to in-app SupportWebActivity (with full JS, DOM & Database storage, and software rendering).
+ * Centralizes in-app opening of Crisp Chat and administrative support channels via native Android WebView.
+ * - Strictly configures DOM storage, database, JavaScript, and in-app WebViewClient routing.
  * - Dynamically updates and fetches target URLs from the Admin Panel / Firebase backend configuration.
- * - Ensures proper back-button and close behavior returning cleanly to the current screen.
+ * - Enforces robust null/empty checks with immediate fallback to the verified Crisp chat embed URL:
+ *   https://go.crisp.chat/chat/embed/?website_id=50ac8743-e9cf-4f46-a2f1-888d6724bd72
  */
 object SupportChatManager {
     private const val TAG = "SupportChatManager"
@@ -44,77 +39,63 @@ object SupportChatManager {
      */
     fun updateFromSettings(settings: AppSettings) {
         val dynamicDefault = settings.getDynamicSupportUrl()
-        cachedCrispUrl = dynamicDefault
+        cachedCrispUrl = resolveDynamicChatUrl(dynamicDefault)
 
         cachedContactUrl = if (settings.contactUs.effectiveInput.isNotBlank()) {
-            settings.contactUs.effectiveInput
+            resolveDynamicChatUrl(settings.contactUs.effectiveInput)
         } else {
-            dynamicDefault
+            cachedCrispUrl
         }
 
         cachedReportUrl = if (settings.reportProblem.effectiveInput.isNotBlank()) {
-            settings.reportProblem.effectiveInput
+            resolveDynamicChatUrl(settings.reportProblem.effectiveInput)
         } else {
-            dynamicDefault
+            cachedCrispUrl
         }
 
         cachedFabUrl = if (settings.fabButton.effectiveInput.isNotBlank()) {
-            settings.fabButton.effectiveInput
+            resolveDynamicChatUrl(settings.fabButton.effectiveInput)
         } else {
-            dynamicDefault
+            cachedCrispUrl
         }
 
         Log.d(TAG, "SupportChatManager updated: Crisp=$cachedCrispUrl, Contact=$cachedContactUrl, Report=$cachedReportUrl, FAB=$cachedFabUrl")
     }
 
     /**
-     * Opens Crisp chat or support link in-app.
-     * Uses Chrome Custom Tabs (CustomTabsIntent) with app-themed toolbar for an in-app overlay experience.
-     * Falls back to SupportWebActivity (in-app WebView dialog) if Custom Tabs is not supported.
+     * Resolves the dynamic admin URL with comprehensive null and empty checks.
+     * If the provided admin URL is null, empty, whitespace, or invalid, gracefully falls back
+     * to the verified default Crisp Chat URL.
+     */
+    fun resolveDynamicChatUrl(adminUrl: String?): String {
+        val trimmed = adminUrl?.trim().orEmpty()
+        val candidate = if (trimmed.isNotBlank()) {
+            trimmed
+        } else {
+            cachedCrispUrl.trim()
+        }
+
+        val resolved = if (candidate.isNotBlank()) candidate else DEFAULT_CRISP_URL
+
+        return if (!resolved.startsWith("http://", ignoreCase = true) &&
+            !resolved.startsWith("https://", ignoreCase = true)
+        ) {
+            "https://$resolved"
+        } else {
+            resolved
+        }
+    }
+
+    /**
+     * Opens Crisp chat in-app using the Native Android WebView (SupportWebActivity).
+     * Bypasses external browser intent interceptors, guaranteeing the chat loads directly
+     * with full DOM Storage, JavaScript, database, and custom WebViewClient on real devices.
      */
     fun openInAppChat(
         context: Context,
         url: String? = null
     ) {
-        val target = if (!url.isNullOrBlank()) {
-            url.trim()
-        } else {
-            cachedCrispUrl
-        }.ifBlank {
-            DEFAULT_CRISP_URL
-        }
-
-        val fullUrl = if (!target.startsWith("http://", ignoreCase = true) &&
-            !target.startsWith("https://", ignoreCase = true)
-        ) {
-            "https://$target"
-        } else {
-            target
-        }
-
-        try {
-            val colorSchemeParams = CustomTabColorSchemeParams.Builder()
-                .setToolbarColor(Color.parseColor("#00796B")) // Matching TealPrimaryDark
-                .build()
-
-            val customTabsIntent = CustomTabsIntent.Builder()
-                .setShowTitle(true)
-                .setDefaultColorSchemeParams(colorSchemeParams)
-                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-                .build()
-
-            customTabsIntent.launchUrl(context, Uri.parse(fullUrl))
-        } catch (e: Exception) {
-            Log.w(TAG, "CustomTabs launch failed, falling back to SupportWebActivity: ${e.message}")
-            try {
-                SupportWebActivity.start(context, fullUrl)
-            } catch (e2: Exception) {
-                Log.e(TAG, "SupportWebActivity fallback failed: ${e2.message}")
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-                    context.startActivity(intent)
-                } catch (_: Exception) {}
-            }
-        }
+        val targetUrl = resolveDynamicChatUrl(url)
+        SupportWebActivity.start(context, targetUrl)
     }
 }

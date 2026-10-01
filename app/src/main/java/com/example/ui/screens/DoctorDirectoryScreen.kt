@@ -572,9 +572,11 @@ fun DoctorDirectoryScreen(
                                     if (appSettings.contactUs.isActive) {
                                         FilledTonalButton(
                                             onClick = {
-                                                val dynamicUrl = appSettings.contactUs.effectiveInput.ifBlank {
-                                                    com.example.util.SupportChatManager.cachedContactUrl
-                                                }
+                                                val dynamicUrl = com.example.util.SupportChatManager.resolveDynamicChatUrl(
+                                                    appSettings.contactUs.effectiveInput.ifBlank {
+                                                        com.example.util.SupportChatManager.cachedContactUrl
+                                                    }
+                                                )
                                                 com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
                                             },
                                             modifier = Modifier
@@ -595,9 +597,11 @@ fun DoctorDirectoryScreen(
                                     if (appSettings.reportProblem.isActive) {
                                         OutlinedButton(
                                             onClick = {
-                                                val dynamicUrl = appSettings.reportProblem.effectiveInput.ifBlank {
-                                                    com.example.util.SupportChatManager.cachedReportUrl
-                                                }
+                                                val dynamicUrl = com.example.util.SupportChatManager.resolveDynamicChatUrl(
+                                                    appSettings.reportProblem.effectiveInput.ifBlank {
+                                                        com.example.util.SupportChatManager.cachedReportUrl
+                                                    }
+                                                )
                                                 com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
                                             },
                                             modifier = Modifier

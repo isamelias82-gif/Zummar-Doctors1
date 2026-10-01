@@ -75,11 +75,9 @@ fun WhatsAppFab(
                     context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanNumber")))
                 } catch (_: Exception) {}
             } else {
-                val targetUrl = actionInput.ifBlank {
-                    com.example.util.SupportChatManager.cachedFabUrl
-                }.ifBlank {
-                    com.example.util.SupportChatManager.DEFAULT_CRISP_URL
-                }
+                val targetUrl = com.example.util.SupportChatManager.resolveDynamicChatUrl(
+                    actionInput.ifBlank { com.example.util.SupportChatManager.cachedFabUrl }
+                )
                 com.example.util.SupportChatManager.openInAppChat(context, targetUrl)
             }
         },
