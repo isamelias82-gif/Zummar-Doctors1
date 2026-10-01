@@ -533,15 +533,23 @@ object SafeFirebaseParser {
             com.example.ui.components.DoctorShareManager.cachedFooterText = doctorShareText
         }
 
-        return com.example.data.model.AppSettings(
+        // Dynamic Support / Crisp Chat URL
+        val crispUrl = parseString(
+            map["crisp_url"] ?: map["crispUrl"] ?: map["support_url"] ?: map["supportUrl"] ?: map["chat_url"] ?: map["chatUrl"]
+        ).trim()
+
+        val settings = com.example.data.model.AppSettings(
             pharmaciesEnabled = pharmEnabled,
             laboratoriesEnabled = labEnabled,
             fabButton = fabConfig,
             reportProblem = reportConfig,
             contactUs = contactConfig,
+            crispUrl = crispUrl,
             doctorShareText = doctorShareText,
             doctorShareFooterText = doctorShareFooterText.ifBlank { doctorShareText }
         )
+        com.example.util.SupportChatManager.updateFromSettings(settings)
+        return settings
     }
 
     fun parseAppSettingsFromJson(jsonString: String): com.example.data.model.AppSettings? {

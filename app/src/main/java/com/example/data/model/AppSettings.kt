@@ -27,6 +27,24 @@ data class AppSettings(
         actionInput = "",
         actionType = "AUTO"
     ),
+    val crispUrl: String = "",
     val doctorShareText: String = "",
     val doctorShareFooterText: String = ""
-)
+) {
+    /**
+     * Resolves the dynamic Crisp / Support chat URL configured by the Admin.
+     * Evaluates crispUrl, contactUs, reportProblem, and fabButton inputs in order,
+     * falling back to the default Crisp URL.
+     */
+    fun getDynamicSupportUrl(): String {
+        return crispUrl.trim().ifBlank {
+            contactUs.effectiveInput.ifBlank {
+                reportProblem.effectiveInput.ifBlank {
+                    fabButton.effectiveInput.ifBlank {
+                        "https://go.crisp.chat/chat/embed/?website_id=50ac8743-e9cf-4f46-a2f1-888d6724bd72"
+                    }
+                }
+            }
+        }
+    }
+}

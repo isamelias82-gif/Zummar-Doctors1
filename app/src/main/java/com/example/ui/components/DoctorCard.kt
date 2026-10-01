@@ -517,15 +517,14 @@ fun shareDoctorCard(context: Context, doctor: Doctor, template: String = "") {
 }
 
 /**
- * Reports doctor information issue dynamically to admin via configured link or dialer
+ * Reports doctor information issue dynamically to admin via in-app Crisp chat (Custom Tabs / WebView)
+ * using the URL fetched dynamically from the Admin Panel.
  */
 fun reportIssueToAdmin(context: Context, doctor: Doctor) {
-    val message = "السلام عليكم إدارة تطبيق أطباء زمار، بخصوص الطبيب (${doctor.name} - ${doctor.specialty})، أود الإبلاغ عن ملاحظة/تعديل في (ساعات الدوام / العنوان / أرقام الهاتف): "
-    executeSmartAction(
-        context = context,
-        actionInput = null,
-        actionType = "AUTO",
-        defaultMessage = message,
-        targetKey = "report_problem"
-    )
+    val dynamicUrl = com.example.util.SupportChatManager.cachedReportUrl.ifBlank {
+        com.example.util.SupportChatManager.cachedCrispUrl
+    }.ifBlank {
+        com.example.util.SupportChatManager.DEFAULT_CRISP_URL
+    }
+    com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
 }

@@ -9,8 +9,8 @@ import com.example.ui.activities.SupportWebActivity
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -50,33 +50,38 @@ fun WhatsAppFab(
 
     val actionInput = config.effectiveInput
     val isPhone = remember(actionInput, config.actionType) {
-        if (actionInput.isBlank()) true else isPhoneNumber(actionInput, config.actionType)
+        if (actionInput.isBlank()) false else isPhoneNumber(actionInput, config.actionType)
     }
     val isWhatsapp = remember(actionInput, config.actionType) {
         config.actionType.equals("WHATSAPP", ignoreCase = true) || actionInput.contains("wa.me")
     }
 
     val icon = when {
-        isWhatsapp -> Icons.Default.Chat
         isPhone -> Icons.Default.Call
-        else -> Icons.Default.OpenInBrowser
+        else -> Icons.AutoMirrored.Filled.Chat
     }
 
     val desc = when {
-        isWhatsapp -> "تواصل مع الإدارة عبر واتساب"
         isPhone -> "اتصال مباشر بالإدارة"
-        else -> "فتح الرابط التفاعلي"
+        isWhatsapp -> "تواصل مع الإدارة عبر واتساب"
+        else -> "المحادثة الفورية والدعم الفني (Crisp Chat)"
     }
 
     FloatingActionButton(
         onClick = {
-            executeSmartAction(
-                context = context,
-                actionInput = actionInput,
-                actionType = config.actionType,
-                defaultMessage = customMessage,
-                targetKey = "fab_button"
-            )
+            if (isPhone && actionInput.isNotBlank()) {
+                val cleanNumber = actionInput.filter { it.isDigit() || it == '+' }
+                try {
+                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanNumber")))
+                } catch (_: Exception) {}
+            } else {
+                val targetUrl = actionInput.ifBlank {
+                    com.example.util.SupportChatManager.cachedFabUrl
+                }.ifBlank {
+                    com.example.util.SupportChatManager.DEFAULT_CRISP_URL
+                }
+                com.example.util.SupportChatManager.openInAppChat(context, targetUrl)
+            }
         },
         shape = CircleShape,
         containerColor = WhatsAppGreen,
@@ -97,7 +102,7 @@ fun WhatsAppFab(
 /**
  * Universal Smart Action Dispatcher with Dynamic On-Click Fetch from Firebase Realtime Database:
  * 1. Checks given actionInput or fetches latest value from Firebase RTDB (/app_settings, /settings, /sponsor_banner).
- * 2. If actionValue starts with "http://" or "https://", launch Intent.ACTION_VIEW (Crisp Chat / Web link).
+ * 2. If actionValue starts with "http://" or "https://", launch in-app Crisp Chat / Custom Tabs.
  * 3. If actionValue is numeric/phone, launch Intent.ACTION_DIAL (Phone Dialer).
  * 4. No hardcoded fallback phone number is ever used.
  */
@@ -139,29 +144,18 @@ fun executeSmartAction(
         if (finalValue.isNotBlank()) {
             routeDynamicAction(context, finalValue, actionType, defaultMessage)
         } else {
-            // Default to Crisp chat interface in in-app WebView
-            openWebUrl(context, SupportWebActivity.CRISP_URL)
+            // Default to Crisp chat interface in in-app Custom Tabs / WebView
+            val dynamicUrl = com.example.util.SupportChatManager.cachedCrispUrl
+            com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
         }
     }
 }
 
 /**
- * Opens web links inside in-app SupportWebActivity (with full JS, DOM Storage & Database enabled)
- * or via Chrome Custom Tabs if preferred.
+ * Opens web links inside in-app Custom Tabs or SupportWebActivity (with full JS, DOM Storage & Database enabled)
  */
 fun openWebUrl(context: Context, url: String) {
-    try {
-        SupportWebActivity.start(context, url)
-    } catch (e: Exception) {
-        try {
-            val builder = CustomTabsIntent.Builder()
-            val customTabsIntent = builder.build()
-            customTabsIntent.launchUrl(context, Uri.parse(url))
-        } catch (e2: Exception) {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            context.startActivity(intent)
-        }
-    }
+    com.example.util.SupportChatManager.openInAppChat(context, url)
 }
 
 /**

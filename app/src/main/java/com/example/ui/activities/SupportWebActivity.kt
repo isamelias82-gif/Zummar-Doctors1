@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -14,6 +16,7 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -33,7 +36,7 @@ class SupportWebActivity : ComponentActivity() {
 
         fun start(context: Context, url: String? = null) {
             val targetUrl = if (url.isNullOrBlank()) {
-                CRISP_URL
+                com.example.util.SupportChatManager.cachedCrispUrl.ifBlank { CRISP_URL }
             } else {
                 url.trim()
             }
@@ -98,12 +101,15 @@ class SupportWebActivity : ComponentActivity() {
                             }
                         }
 
-                        // WebView with JS, DOM Storage & Database enabled
+                        // Software-rendered WebView protected against renderer crashes
                         Box(modifier = Modifier.weight(1f)) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
                                         this@SupportWebActivity.webView = this
+                                        // Disable hardware GPU acceleration to avoid Mesa rendernode crash in emulators
+                                        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -111,6 +117,7 @@ class SupportWebActivity : ComponentActivity() {
                                         settings.apply {
                                             javaScriptEnabled = true
                                             domStorageEnabled = true
+                                            @Suppress("DEPRECATION")
                                             databaseEnabled = true
                                             allowFileAccess = true
                                             allowContentAccess = true
@@ -122,6 +129,7 @@ class SupportWebActivity : ComponentActivity() {
                                             useWideViewPort = true
                                             loadWithOverviewMode = true
                                         }
+
                                         webViewClient = object : WebViewClient() {
                                             @Deprecated("Deprecated in Java")
                                             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
@@ -140,16 +148,47 @@ class SupportWebActivity : ComponentActivity() {
                                                 if (targetUrl.startsWith("tel:") || targetUrl.startsWith("whatsapp:") || targetUrl.startsWith("mailto:")) {
                                                     try {
                                                         ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
-                                                    } catch (e: Exception) {}
+                                                    } catch (_: Exception) {}
                                                     return true
                                                 }
                                                 // Keep all link navigations inside the WebView
-                                                view?.loadUrl(targetUrl)
+                                                try {
+                                                    view?.loadUrl(targetUrl)
+                                                } catch (_: Exception) {}
+                                                return true
+                                            }
+
+                                            override fun onRenderProcessGone(
+                                                view: WebView?,
+                                                detail: RenderProcessGoneDetail?
+                                            ): Boolean {
+                                                // CRITICAL: Return true so the host app process is NOT killed on renderer crash
+                                                val failedUrl = view?.url ?: url
+                                                try {
+                                                    (view?.parent as? ViewGroup)?.removeView(view)
+                                                    view?.destroy()
+                                                } catch (_: Exception) {}
+                                                this@SupportWebActivity.webView = null
+
+                                                // Fallback safely to CustomTabs or External Browser
+                                                try {
+                                                    val builder = CustomTabsIntent.Builder()
+                                                    builder.build().launchUrl(this@SupportWebActivity, Uri.parse(failedUrl))
+                                                } catch (_: Exception) {
+                                                    try {
+                                                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(failedUrl)))
+                                                    } catch (_: Exception) {}
+                                                }
+                                                finish()
                                                 return true
                                             }
                                         }
+
                                         webChromeClient = WebChromeClient()
-                                        loadUrl(url)
+
+                                        try {
+                                            loadUrl(url)
+                                        } catch (_: Exception) {}
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize()
@@ -162,7 +201,11 @@ class SupportWebActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        webView?.destroy()
+        try {
+            webView?.stopLoading()
+            (webView?.parent as? ViewGroup)?.removeView(webView)
+            webView?.destroy()
+        } catch (_: Exception) {}
         webView = null
         super.onDestroy()
     }

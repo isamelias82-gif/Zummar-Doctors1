@@ -96,6 +96,7 @@ class DoctorRepository(
                 try {
                     val settings = FirebaseRestHelper.fetchAppSettings()
                     if (settings != null) {
+                        com.example.util.SupportChatManager.updateFromSettings(settings)
                         trySend(settings)
                     }
                 } catch (e: Exception) {

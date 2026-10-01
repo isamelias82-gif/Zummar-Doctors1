@@ -572,13 +572,10 @@ fun DoctorDirectoryScreen(
                                     if (appSettings.contactUs.isActive) {
                                         FilledTonalButton(
                                             onClick = {
-                                                executeSmartAction(
-                                                    context = context,
-                                                    actionInput = appSettings.contactUs.effectiveInput,
-                                                    actionType = appSettings.contactUs.actionType,
-                                                    defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود التواصل معكم بخصوص...",
-                                                    targetKey = "contact_us"
-                                                )
+                                                val dynamicUrl = appSettings.contactUs.effectiveInput.ifBlank {
+                                                    com.example.util.SupportChatManager.cachedContactUrl
+                                                }
+                                                com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
@@ -598,13 +595,10 @@ fun DoctorDirectoryScreen(
                                     if (appSettings.reportProblem.isActive) {
                                         OutlinedButton(
                                             onClick = {
-                                                executeSmartAction(
-                                                    context = context,
-                                                    actionInput = appSettings.reportProblem.effectiveInput,
-                                                    actionType = appSettings.reportProblem.actionType,
-                                                    defaultMessage = "السلام عليكم إدارة تطبيق أطباء زمار، أود الإبلاغ عن مشكلة/تحديث في بيانات...",
-                                                    targetKey = "report_problem"
-                                                )
+                                                val dynamicUrl = appSettings.reportProblem.effectiveInput.ifBlank {
+                                                    com.example.util.SupportChatManager.cachedReportUrl
+                                                }
+                                                com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
                                             },
                                             modifier = Modifier
                                                 .weight(1f)

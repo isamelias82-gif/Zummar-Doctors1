@@ -23,8 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -319,6 +321,88 @@ fun PharmaciesScreen(
                         }
                     }
                 }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "هل تحتاج إلى مساعدة أو لديك استفسار؟",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "فريق الإدارة جاهز للرد على استفساراتكم وتحديث البيانات فوراً",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (appSettings.contactUs.isActive) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        val dynamicUrl = appSettings.contactUs.effectiveInput.ifBlank {
+                                            com.example.util.SupportChatManager.cachedContactUrl
+                                        }
+                                        com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("btn_bottom_contact_us_pharmacies"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.HeadsetMic,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("تواصل معنا", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+
+                            if (appSettings.reportProblem.isActive) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val dynamicUrl = appSettings.reportProblem.effectiveInput.ifBlank {
+                                            com.example.util.SupportChatManager.cachedReportUrl
+                                        }
+                                        com.example.util.SupportChatManager.openInAppChat(context, dynamicUrl)
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("btn_bottom_report_problem_pharmacies"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ReportProblem,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("إبلاغ عن مشكلة", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
         }

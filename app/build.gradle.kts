@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.util.Base64
 
 plugins {
   alias(libs.plugins.android.application)
@@ -16,8 +17,8 @@ android {
     applicationId = "com.aistudio.zummardoctors.kxmvzq"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -26,6 +27,13 @@ android {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
       val releaseKeystore = file(keystorePath)
+      val base64Keystore = file("${rootDir}/my-upload-key.keystore.base64")
+      if (!releaseKeystore.exists() && base64Keystore.exists()) {
+        try {
+          val decoded = Base64.getDecoder().decode(base64Keystore.readText().trim())
+          releaseKeystore.writeBytes(decoded)
+        } catch (_: Exception) {}
+      }
       if (releaseKeystore.exists()) {
         storeFile = releaseKeystore
         storePassword = System.getenv("STORE_PASSWORD") ?: "android"

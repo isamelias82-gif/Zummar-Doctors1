@@ -10,6 +10,10 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 
     <application
@@ -36,6 +40,7 @@
         <activity
             android:name=".ui.activities.SupportWebActivity"
             android:exported="false"
+            android:hardwareAccelerated="false"
             android:theme="@style/Theme.MyApplication" />
     </application>
 
