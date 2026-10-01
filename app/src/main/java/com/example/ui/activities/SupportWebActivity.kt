@@ -136,7 +136,7 @@ class SupportWebActivity : ComponentActivity() {
                             )
                         }
 
-                        // Native Android WebView with DOM Storage & JavaScript enabled
+                        // Native Android WebView with third-party cookies & session persistence
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -148,7 +148,7 @@ class SupportWebActivity : ComponentActivity() {
                                     WebView(ctx).apply {
                                         this@SupportWebActivity.webView = this
 
-                                        // Set white background to prevent black or blank screens
+                                        // Set white background to prevent black/blank screens
                                         setBackgroundColor(android.graphics.Color.WHITE)
 
                                         // Ensure hardware acceleration on physical devices; fallback to software on emulator if needed
@@ -165,35 +165,37 @@ class SupportWebActivity : ComponentActivity() {
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
 
-                                        // CookieManager: enable 3rd party cookies for Crisp session and socket
-                                        try {
-                                            val cookieManager = CookieManager.getInstance()
-                                            cookieManager.setAcceptCookie(true)
-                                            cookieManager.setAcceptThirdPartyCookies(this, true)
-                                        } catch (_: Exception) {}
+                                        // 1. Enable Third-Party Cookies (CRITICAL for Crisp session restore)
+                                        val cookieManager = CookieManager.getInstance()
+                                        cookieManager.setAcceptCookie(true)
+                                        cookieManager.setAcceptThirdPartyCookies(this, true)
 
-                                        // 1. Enable Required Web Settings & 3. Custom User Agent Fix
+                                        // 2. Comprehensive WebSettings
                                         settings.apply {
                                             javaScriptEnabled = true
-                                            domStorageEnabled = true // CRITICAL for Crisp
+                                            domStorageEnabled = true
                                             @Suppress("DEPRECATION")
                                             databaseEnabled = true
+                                            javaScriptCanOpenWindowsAutomatically = true
                                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                            
-                                            // Remove "; wv" from userAgentString so Crisp/Cloudflare does not block the webview client
+                                            cacheMode = WebSettings.LOAD_DEFAULT
+
+                                            // Remove "; wv" from userAgentString so Crisp doesn't block the webview client
                                             userAgentString = userAgentString.replace("; wv", "")
 
                                             allowFileAccess = true
                                             allowContentAccess = true
                                             setSupportMultipleWindows(true)
-                                            javaScriptCanOpenWindowsAutomatically = true
                                             loadsImagesAutomatically = true
-                                            cacheMode = WebSettings.LOAD_DEFAULT
                                             useWideViewPort = true
                                             loadWithOverviewMode = true
                                         }
 
                                         // 2. Configure Clients & Rendering
+                                        webChromeClient = WebChromeClient().apply {
+                                            // Handle progress via custom callback or leave default
+                                        }
+
                                         webChromeClient = object : WebChromeClient() {
                                             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                                 progress = newProgress / 100f
@@ -209,7 +211,7 @@ class SupportWebActivity : ComponentActivity() {
                                                 request: WebResourceRequest?
                                             ): Boolean {
                                                 val target = request?.url?.toString() ?: return false
-                                                return handleUrl(target)
+                                                return handleUrl(ctx, target)
                                             }
 
                                             @Deprecated("Deprecated in Java")
@@ -218,20 +220,19 @@ class SupportWebActivity : ComponentActivity() {
                                                 url: String?
                                             ): Boolean {
                                                 if (url == null) return false
-                                                return handleUrl(url)
+                                                return handleUrl(ctx, url)
                                             }
 
-                                            private fun handleUrl(target: String): Boolean {
+                                            private fun handleUrl(context: Context, target: String): Boolean {
                                                 if (target.startsWith("tel:") || target.startsWith("whatsapp:") ||
                                                     target.startsWith("mailto:") || target.startsWith("sms:") ||
                                                     target.startsWith("intent:")
                                                 ) {
                                                     try {
-                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
+                                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
                                                     } catch (_: Exception) {}
                                                     return true
                                                 }
-                                                // Keep all HTTP/HTTPS links and redirects inside this native WebView
                                                 return false
                                             }
 
@@ -295,6 +296,17 @@ class SupportWebActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // 3. Proper Lifecycle Handling
+    override fun onResume() {
+        super.onResume()
+        webView?.onResume()
+    }
+
+    override fun onPause() {
+        webView?.onPause()
+        super.onPause()
     }
 
     override fun onDestroy() {
